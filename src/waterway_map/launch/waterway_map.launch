@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 启动GridMap加载器 -->
+    <node name="map_loader_node" pkg="waterway_map" type="map_loader_node" output="screen">
+        <param name="csv_path" value="/home/fufeng/map/combined_distance_field3.csv" />
+        <param name="resolution" value="0.5" />
+    </node>
+    
+    <!-- 启动RViz -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d waterway_map/config/waterway.rviz" />
+    
+    <!-- 可选的：启动静态TF发布 -->
+    <node pkg="tf" name="static_tf" type="static_transform_publisher" 
+          args="0 0 0 0 0 0 map odom 100" />
+</launch>

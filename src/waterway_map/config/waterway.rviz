@@ -1,0 +1,10 @@
+
+<Display type="rviz/GridCells">
+  <Topic>/grid_map</Topic>
+  <Alpha>0.5</Alpha>
+  <Color Transformer="Intensity"/>
+  <Color>255; 255; 255</Color>
+  <Queue Size>10</Queue>
+  <Enabled>true</Enabled>
+  <Name>Waterway GridMap</Name>
+</Display>

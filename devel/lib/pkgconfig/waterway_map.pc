@@ -1,0 +1,8 @@
+prefix=/home/fufeng/demon3.16/devel
+
+Name: waterway_map
+Description: Description of waterway_map
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: grid_map_msgs grid_map_ros roscpp std_msgs

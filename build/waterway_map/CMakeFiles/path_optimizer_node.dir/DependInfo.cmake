@@ -1,0 +1,35 @@
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  "CXX"
+  )
+# The set of files for implicit dependencies of each language:
+set(CMAKE_DEPENDS_CHECK_CXX
+  "/home/fufeng/demon3.16/src/waterway_map/src/path_optimizer.cpp" "/home/fufeng/demon3.16/build/waterway_map/CMakeFiles/path_optimizer_node.dir/src/path_optimizer.cpp.o"
+  )
+set(CMAKE_CXX_COMPILER_ID "GNU")
+
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_CXX
+  "EIGEN_DENSEBASE_PLUGIN=\"grid_map_core/eigen_plugins/DenseBasePlugin.hpp\""
+  "EIGEN_FUNCTORS_PLUGIN=\"grid_map_core/eigen_plugins/FunctorsPlugin.hpp\""
+  "EIGEN_NO_DEBUG"
+  "EIGEN_NO_STATIC_ASSERT"
+  "ROSCONSOLE_BACKEND_LOG4CXX"
+  "ROS_BUILD_SHARED_LIBS=1"
+  "ROS_PACKAGE_NAME=\"waterway_map\""
+  )
+
+# The include file search paths:
+set(CMAKE_CXX_TARGET_INCLUDE_PATH
+  "/usr/include/eigen3"
+  "/usr/include/opencv4"
+  "/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp"
+  "/opt/ros/noetic/include"
+  )
+
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")

@@ -1,0 +1,17 @@
+<launch>
+    <arg name="model" default="$(find waterway_map)/urdf/usv.xacro"/>
+    
+    <param name="robot_description" command="$(find xacro)/xacro $(arg model)"/>
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="paused" value="false"/>
+        <arg name="use_sim_time" value="true"/>
+        <arg name="gui" value="true"/>
+    </include>
+
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" 
+          args="-param robot_description -urdf -model simple_usv -x 0 -y 0 -z 0.5" />
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+</launch>
