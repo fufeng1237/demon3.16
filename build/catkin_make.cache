@@ -1,2 +1,2 @@
 waterway_map
--DCATKIN_DEVEL_PREFIX=/home/fufeng/demon3.16/devel -DCMAKE_INSTALL_PREFIX=/home/fufeng/demon3.16/install -G Unix Makefiles
+-DCATKIN_DEVEL_PREFIX=/home/ros_ws/demon3.16/devel -DCMAKE_INSTALL_PREFIX=/home/ros_ws/demon3.16/install -G Unix Makefiles
