@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/fufeng/demon3.16/src
+CMAKE_SOURCE_DIR = /home/ros_ws/demon3.16/src
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/fufeng/demon3.16/build
+CMAKE_BINARY_DIR = /home/ros_ws/demon3.16/build
 
 # Utility rule file for geometry_msgs_generate_messages_eus.
 
@@ -63,10 +63,10 @@ waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/build: geometry_
 .PHONY : waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/build
 
 waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/clean:
-	cd /home/fufeng/demon3.16/build/waterway_map && $(CMAKE_COMMAND) -P CMakeFiles/geometry_msgs_generate_messages_eus.dir/cmake_clean.cmake
+	cd /home/ros_ws/demon3.16/build/waterway_map && $(CMAKE_COMMAND) -P CMakeFiles/geometry_msgs_generate_messages_eus.dir/cmake_clean.cmake
 .PHONY : waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/clean
 
 waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/depend:
-	cd /home/fufeng/demon3.16/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/fufeng/demon3.16/src /home/fufeng/demon3.16/src/waterway_map /home/fufeng/demon3.16/build /home/fufeng/demon3.16/build/waterway_map /home/fufeng/demon3.16/build/waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/ros_ws/demon3.16/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ros_ws/demon3.16/src /home/ros_ws/demon3.16/src/waterway_map /home/ros_ws/demon3.16/build /home/ros_ws/demon3.16/build/waterway_map /home/ros_ws/demon3.16/build/waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : waterway_map/CMakeFiles/geometry_msgs_generate_messages_eus.dir/depend
 

@@ -225,10 +225,10 @@ int main(int argc, char** argv) {
     ros::Subscriber m_sub = nh.subscribe("/map", 1, mapCallback);
 
     std::string csv_path;
-    nh.param<std::string>("csv_path", csv_path, "/home/fufeng/map/combined_distance_field3.csv");
+    nh.param<std::string>("csv_path", csv_path, "/home/ros_ws/demon3.16/src/waterway_map/map/combined_distance_field.csv");
     global_map.setFrameId("map");
 
-    if (!loadCSV(csv_path, 0.5)) { ROS_ERROR("CSV Load Failed"); return -1; }
+    if (!loadCSV(csv_path,0.5 )) { ROS_ERROR("CSV Load Failed"); return -1; }
 
     ros::Rate rate(5); 
     while (ros::ok()) {

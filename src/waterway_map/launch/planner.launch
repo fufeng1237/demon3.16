@@ -1,6 +1,6 @@
 <launch>
     <node pkg="waterway_map" type="planner_node" name="planner_node" output="screen">
-        <param name="csv_path" value="/home/fufeng/map/combined_distance_field3.csv" />
+        <param name="csv_path" value="/home/ros_ws/demon3.16/src/waterway_map/map/combined_distance_field.csv" />
         <remap from="~planned_path" to="/planned_path" />
         <remap from="~traditional_path" to="/traditional_path" />
     </node>

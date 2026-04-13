@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/fufeng/demon3.16/src/waterway_map/src/A_star.cpp
+/home/ros_ws/demon3.16/src/waterway_map/src/A_star.cpp
 ros/ros.h
 -
 grid_map_ros/grid_map_ros.hpp

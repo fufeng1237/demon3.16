@@ -1,4 +1,4 @@
-prefix=/home/fufeng/demon3.16/devel
+prefix=/home/ros_ws/demon3.16/devel
 
 Name: waterway_map
 Description: Description of waterway_map

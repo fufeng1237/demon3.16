@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/fufeng/demon3.16/devel/lib/waterway_map/map_loader_node"
-  "/home/fufeng/demon3.16/devel/lib/waterway_map/map_loader_node.pdb"
+  "/home/ros_ws/demon3.16/devel/lib/waterway_map/map_loader_node"
+  "/home/ros_ws/demon3.16/devel/lib/waterway_map/map_loader_node.pdb"
   "CMakeFiles/map_loader_node.dir/src/map_loader_node.cpp.o"
 )
 
