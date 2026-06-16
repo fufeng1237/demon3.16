@@ -6,22 +6,6 @@
 
 #IncludeRegexTransform: 
 
-/home/ros_ws/demon3.16/src/waterway_map/src/map_loader_node.cpp
-ros/ros.h
--
-grid_map_ros/grid_map_ros.hpp
--
-grid_map_msgs/GridMap.h
--
-fstream
--
-vector
--
-string
--
-sstream
--
-
 /opt/ros/noetic/include/cv_bridge/cv_bridge.h
 sensor_msgs/Image.h
 -
@@ -1380,6 +1364,22 @@ string
 vector
 -
 time.h
+-
+
+/root/demon3.16/src/waterway_map/src/map_loader_node.cpp
+ros/ros.h
+-
+grid_map_ros/grid_map_ros.hpp
+-
+grid_map_msgs/GridMap.h
+-
+fstream
+-
+vector
+-
+string
+-
+sstream
 -
 
 /usr/include/eigen3/Eigen/Cholesky

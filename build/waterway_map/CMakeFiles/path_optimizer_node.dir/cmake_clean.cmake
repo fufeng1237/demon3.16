@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/ros_ws/demon3.16/devel/lib/waterway_map/path_optimizer_node"
-  "/home/ros_ws/demon3.16/devel/lib/waterway_map/path_optimizer_node.pdb"
+  "/root/demon3.16/devel/lib/waterway_map/path_optimizer_node"
+  "/root/demon3.16/devel/lib/waterway_map/path_optimizer_node.pdb"
   "CMakeFiles/path_optimizer_node.dir/src/path_optimizer.cpp.o"
 )
 

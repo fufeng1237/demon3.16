@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ros_ws/demon3.16/src
+CMAKE_SOURCE_DIR = /root/demon3.16/src
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ros_ws/demon3.16/build
+CMAKE_BINARY_DIR = /root/demon3.16/build
 
 # Utility rule file for geometry_msgs_generate_messages_nodejs.
 
@@ -63,10 +63,10 @@ waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/build: geomet
 .PHONY : waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/build
 
 waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/clean:
-	cd /home/ros_ws/demon3.16/build/waterway_map && $(CMAKE_COMMAND) -P CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/cmake_clean.cmake
+	cd /root/demon3.16/build/waterway_map && $(CMAKE_COMMAND) -P CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/cmake_clean.cmake
 .PHONY : waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/clean
 
 waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/depend:
-	cd /home/ros_ws/demon3.16/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ros_ws/demon3.16/src /home/ros_ws/demon3.16/src/waterway_map /home/ros_ws/demon3.16/build /home/ros_ws/demon3.16/build/waterway_map /home/ros_ws/demon3.16/build/waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/DependInfo.cmake --color=$(COLOR)
+	cd /root/demon3.16/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /root/demon3.16/src /root/demon3.16/src/waterway_map /root/demon3.16/build /root/demon3.16/build/waterway_map /root/demon3.16/build/waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : waterway_map/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir/depend
 

@@ -1,8 +1,8 @@
-# Install script for directory: /home/ros_ws/demon3.16/src/waterway_map
+# Install script for directory: /root/demon3.16/src/waterway_map
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/ros_ws/demon3.16/install")
+  set(CMAKE_INSTALL_PREFIX "/root/demon3.16/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -38,17 +38,17 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/ros_ws/demon3.16/build/waterway_map/catkin_generated/installspace/waterway_map.pc")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/root/demon3.16/build/waterway_map/catkin_generated/installspace/waterway_map.pc")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/waterway_map/cmake" TYPE FILE FILES
-    "/home/ros_ws/demon3.16/build/waterway_map/catkin_generated/installspace/waterway_mapConfig.cmake"
-    "/home/ros_ws/demon3.16/build/waterway_map/catkin_generated/installspace/waterway_mapConfig-version.cmake"
+    "/root/demon3.16/build/waterway_map/catkin_generated/installspace/waterway_mapConfig.cmake"
+    "/root/demon3.16/build/waterway_map/catkin_generated/installspace/waterway_mapConfig-version.cmake"
     )
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/waterway_map" TYPE FILE FILES "/home/ros_ws/demon3.16/src/waterway_map/package.xml")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/waterway_map" TYPE FILE FILES "/root/demon3.16/src/waterway_map/package.xml")
 endif()
 

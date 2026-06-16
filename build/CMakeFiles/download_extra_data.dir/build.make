@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ros_ws/demon3.16/src
+CMAKE_SOURCE_DIR = /root/demon3.16/src
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ros_ws/demon3.16/build
+CMAKE_BINARY_DIR = /root/demon3.16/build
 
 # Utility rule file for download_extra_data.
 
@@ -67,6 +67,6 @@ CMakeFiles/download_extra_data.dir/clean:
 .PHONY : CMakeFiles/download_extra_data.dir/clean
 
 CMakeFiles/download_extra_data.dir/depend:
-	cd /home/ros_ws/demon3.16/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ros_ws/demon3.16/src /home/ros_ws/demon3.16/src /home/ros_ws/demon3.16/build /home/ros_ws/demon3.16/build /home/ros_ws/demon3.16/build/CMakeFiles/download_extra_data.dir/DependInfo.cmake --color=$(COLOR)
+	cd /root/demon3.16/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /root/demon3.16/src /root/demon3.16/src /root/demon3.16/build /root/demon3.16/build /root/demon3.16/build/CMakeFiles/download_extra_data.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/download_extra_data.dir/depend
 

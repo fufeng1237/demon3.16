@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"name": "demon3.16",
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.autoComplete.extraPaths": [
+			"/opt/ros/noetic/lib/python3/dist-packages"
+		],
+		"python.analysis.extraPaths": [
+			"/opt/ros/noetic/lib/python3/dist-packages"
+		],
+		"C_Cpp.errorSquiggles": "disabled",
+		"ROS2.distro": "noetic",
+		"cmake.sourceDirectory": "/home/ros_ws/demon3.16/src/waterway_map"
+	}
+}

@@ -6,18 +6,6 @@
 
 #IncludeRegexTransform: 
 
-/home/ros_ws/demon3.16/src/waterway_map/src/path_optimizer.cpp
-ros/ros.h
--
-nav_msgs/Path.h
--
-geometry_msgs/PoseStamped.h
--
-vector
--
-cmath
--
-
 /opt/ros/noetic/include/geometry_msgs/Point.h
 string
 -
@@ -790,5 +778,17 @@ string
 vector
 -
 time.h
+-
+
+/root/demon3.16/src/waterway_map/src/path_optimizer.cpp
+ros/ros.h
+-
+nav_msgs/Path.h
+-
+geometry_msgs/PoseStamped.h
+-
+vector
+-
+cmath
 -
 

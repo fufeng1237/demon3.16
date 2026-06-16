@@ -2,7 +2,7 @@
 <launch>
     <!-- 启动GridMap加载器 -->
     <node name="map_loader_node" pkg="waterway_map" type="map_loader_node" output="screen">
-        <param name="csv_path" value="/home/ros_ws/demon3.16/src/waterway_map/map/combined_distance_field.csv" />
+        <param name="csv_path" value="/root/demon3.16/src/waterway_map/map/combined_distance_field.csv" />
         <param name="resolution" value="141.05485807" />
     </node>
     
