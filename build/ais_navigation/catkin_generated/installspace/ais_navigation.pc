@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/install
+
+Name: ais_navigation
+Description: Description of ais_navigation
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: grid_map_msgs grid_map_ros roscpp std_msgs nav_msgs geometry_msgs

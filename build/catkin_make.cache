@@ -1,2 +1,2 @@
-waterway_map
--DCATKIN_DEVEL_PREFIX=/root/demon3.16/devel -DCMAKE_INSTALL_PREFIX=/root/demon3.16/install -G Unix Makefiles
+ais_navigation
+-DCATKIN_DEVEL_PREFIX=/root/demon3.16/devel -DCMAKE_INSTALL_PREFIX=/root/demon3.16/install -DCATKIN_WHITELIST_PACKAGES=ais_navigation -G Unix Makefiles

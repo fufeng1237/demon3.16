@@ -1,0 +1,79 @@
+<launch>
+    <arg name="rviz" default="true" doc="Launch RViz (set to false for headless mode)"/>
+
+    <!-- ===== Map Server (reuses existing occupancy grid) ===== -->
+    <node pkg="map_server" type="map_server" name="map_server"
+          args="$(find waterway_map)/map/localmap3.yaml" />
+
+    <!-- ===== AIS Lane-Guided A* Planner ===== -->
+    <node pkg="ais_navigation" type="ais_planner_node" name="ais_planner_node" output="screen">
+        <!-- Path to the navigation potential field CSV -->
+        <param name="phibar_csv_path"
+               value="$(find ais_navigation)/map/navigation_potential_field.csv" />
+        <!-- Desired direction: +1 = downstream, -1 = upstream -->
+        <param name="lane_direction" value="1" />
+        <!-- Lane compliance weight (lambda in paper): higher = stronger lane enforcement -->
+        <param name="lane_lambda" value="5.0" />
+        <!-- Grid resolution (must match CSV) -->
+        <param name="map_resolution" value="0.5" />
+        <!-- Enable/disable lane guidance -->
+        <param name="use_lane_guidance" value="true" />
+
+        <remap from="~ais_planned_path" to="/ais_planned_path" />
+        <remap from="~ais_traditional_path" to="/ais_traditional_path" />
+    </node>
+
+    <!-- ===== Lane-Constrained Path Optimizer (guided path) ===== -->
+    <node pkg="ais_navigation" type="ais_path_optimizer_node"
+          name="ais_path_optimizer_node" output="screen">
+        <!-- Smoothing weights -->
+        <param name="weight_data" value="0.2" />
+        <param name="weight_smooth" value="0.5" />
+        <!-- Lane deviation weight (omega_v in paper) -->
+        <param name="weight_lane" value="0.1" />
+        <!-- Lane direction: must match planner -->
+        <param name="lane_direction" value="1" />
+        <!-- Convergence tolerance -->
+        <param name="tolerance" value="0.0001" />
+        <!-- Path to Phi-bar CSV (loaded locally for efficiency) -->
+        <param name="phibar_csv_path"
+               value="$(find ais_navigation)/map/navigation_potential_field.csv" />
+        <param name="grad_x_csv_path"
+               value="$(find ais_navigation)/map/phibar_grad_x.csv" />
+        <param name="grad_y_csv_path"
+               value="$(find ais_navigation)/map/phibar_grad_y.csv" />
+        <param name="map_resolution" value="0.5" />
+
+        <remap from="~planned_path" to="/ais_planned_path" />
+        <remap from="~smoothed_path" to="/ais_smoothed_path" />
+    </node>
+
+    <!-- ===== Path Optimizer for Traditional A* (smoothing only, no lane force) ===== -->
+    <node pkg="ais_navigation" type="ais_path_optimizer_node"
+          name="ais_path_optimizer_traditional_node" output="screen">
+        <param name="weight_data" value="0.1" />
+        <param name="weight_smooth" value="0.4" />
+        <param name="weight_lane" value="0.0" />   <!-- No lane force -->
+        <param name="lane_direction" value="1" />
+        <param name="tolerance" value="0.0001" />
+        <param name="phibar_csv_path"
+               value="$(find ais_navigation)/map/navigation_potential_field.csv" />
+        <param name="grad_x_csv_path"
+               value="$(find ais_navigation)/map/phibar_grad_x.csv" />
+        <param name="grad_y_csv_path"
+               value="$(find ais_navigation)/map/phibar_grad_y.csv" />
+        <param name="map_resolution" value="0.5" />
+
+        <remap from="~planned_path" to="/ais_traditional_path" />
+        <remap from="~smoothed_path" to="/ais_smoothed_traditional_path" />
+    </node>
+
+    <!-- ===== Static TF (map -> odom) ===== -->
+    <node pkg="tf" name="static_tf" type="static_transform_publisher"
+          args="0 0 0 0 0 0 map odom 100" />
+
+    <!-- ===== RViz ===== -->
+    <node pkg="rviz" type="rviz" name="rviz"
+          args="-d $(find ais_navigation)/config/ais_planning.rviz"
+          if="$(arg rviz)" />
+</launch>

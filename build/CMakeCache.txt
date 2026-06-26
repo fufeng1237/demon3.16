@@ -37,7 +37,7 @@ CATKIN_SKIP_TESTING:BOOL=OFF
 CATKIN_SYMLINK_INSTALL:BOOL=OFF
 
 //List of ';' separated packages to build
-CATKIN_WHITELIST_PACKAGES:STRING=
+CATKIN_WHITELIST_PACKAGES:STRING=ais_navigation
 
 //Path to a program.
 CMAKE_ADDR2LINE:FILEPATH=/usr/bin/addr2line
@@ -396,6 +396,12 @@ actionlib_DIR:PATH=/opt/ros/noetic/share/actionlib/cmake
 
 //The directory containing a CMake configuration file for actionlib_msgs.
 actionlib_msgs_DIR:PATH=/opt/ros/noetic/share/actionlib_msgs/cmake
+
+//Value Computed by CMake
+ais_navigation_BINARY_DIR:STATIC=/root/demon3.16/build/ais_navigation
+
+//Value Computed by CMake
+ais_navigation_SOURCE_DIR:STATIC=/root/demon3.16/src/ais_navigation
 
 //The directory containing a CMake configuration file for catkin.
 catkin_DIR:PATH=/opt/ros/noetic/share/catkin/cmake

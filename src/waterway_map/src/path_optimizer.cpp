@@ -20,8 +20,9 @@ public:
         nh.param("max_iterations", max_iterations_, 1000); 
 
         // 订阅原始路径，发布平滑后路径
-        path_sub_ = nh.subscribe("/planned_path", 1, &PathOptimizerNode::pathCallback, this);
-        path_pub_ = nh.advertise<nav_msgs::Path>("/smoothed_path", 1);
+        // 使用私有命名空间 topic，支持 launch 文件中 remap
+        path_sub_ = nh.subscribe("planned_path", 1, &PathOptimizerNode::pathCallback, this);
+        path_pub_ = nh.advertise<nav_msgs::Path>("smoothed_path", 1);
         
         ROS_INFO("Path Optimizer Node started with Channel Deviation Penalty.");
     }

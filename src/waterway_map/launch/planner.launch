@@ -1,21 +1,35 @@
 <launch>
+    <arg name="rviz" default="true" doc="Launch rviz (set to false for headless mode)"/>
+
     <node pkg="waterway_map" type="planner_node" name="planner_node" output="screen">
         <param name="csv_path" value="/root/demon3.16/src/waterway_map/map/combined_distance_field.csv" />
         <remap from="~planned_path" to="/planned_path" />
         <remap from="~traditional_path" to="/traditional_path" />
     </node>
 
+    <!-- 引导式 A* 路径优化 -->
     <node pkg="waterway_map" type="path_optimizer_node" name="path_optimizer_node" output="screen">
         <param name="weight_data" value="0.2" />
         <param name="weight_smooth" value="0.5" />
         <param name="tolerance" value="0.0001" />
+        <param name="weight_deviation" value="0.8" />
+        <param name="safe_corridor" value="1.0" />
         <remap from="~planned_path" to="/planned_path" />
         <remap from="~smoothed_path" to="/smoothed_path" />
     </node>
-    <param name="weight_deviation" value="0.8" />
-    <param name="safe_corridor" value="1.0" />
+
+    <!-- 传统 A* 路径优化（高平滑，拉直） -->
+    <node pkg="waterway_map" type="path_optimizer_node" name="path_optimizer_traditional_node" output="screen">
+        <param name="weight_data" value="0.1" />
+        <param name="weight_smooth" value="0.4" />
+        <param name="tolerance" value="0.0001" />
+        <param name="weight_deviation" value="0.0" />
+        <param name="safe_corridor" value="100.0" />
+        <remap from="~planned_path" to="/traditional_path" />
+        <remap from="~smoothed_path" to="/smoothed_traditional_path" />
+    </node>
 
     <node pkg="tf" name="static_tf" type="static_transform_publisher" args="0 0 0 0 0 0 map odom 100" />
 
-    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find waterway_map)/config/planning.rviz" />
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find waterway_map)/config/planning.rviz" if="$(arg rviz)"/>
 </launch>
