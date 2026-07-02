@@ -59,9 +59,9 @@ struct PairHash {
 
 class AISPlanner {
 public:
-    AISPlanner() : use_local_dir_(true), lambda_(200.0), lambda_qual_(1.0) {}
+    AISPlanner() : lambda_(5.0), lambda_qual_(1.0), direction_(-1) {}
 
-    void setUseLocalDir(bool v) { use_local_dir_ = v; }
+    void setDirection(int d) { direction_ = d; }
     void setLambda(double lam) { lambda_ = lam; }
     void setLambdaQual(double lam_q) { lambda_qual_ = lam_q; }
     double getLambda() const { return lambda_; }
@@ -95,44 +95,23 @@ public:
         return index;
     }
 
-    // ---- Lane Compliance Cost (direction penalty + position quality) ----
+    // ---- Lane Compliance Cost (scalar d, direction penalty + position quality) ----
 
     double laneComplianceCost(const GridMap& map, const Index& cur,
-                              const Index& next) const {
+                              const Index& next, double dist) const {
         if (!map.exists("phibar")) return 0.0;
         float phi = map.at("phibar", next);
         double signal = std::abs(static_cast<double>(phi));
+        if (signal < 0.01) return 0.0;
 
-        if (!use_local_dir_ || !map.exists("dir_x") || !map.exists("dir_y")) {
-            // Fallback: legacy scalar d mode
-            if (signal < 0.01) return 0.0;
-            return lambda_ * std::max(0.0,
-                -direction_ * static_cast<double>(phi));
-        }
-
-        // Step vector
-        Position p_cur, p_next;
-        map.getPosition(cur, p_cur);
-        map.getPosition(next, p_next);
-        double dx = p_next.x() - p_cur.x();
-        double dy = p_next.y() - p_cur.y();
-        double dist = std::sqrt(dx * dx + dy * dy);
-        if (dist < 1e-6) return 0.0;
-
-        // Expected direction at target cell
-        float edx = map.at("dir_x", next);
-        float edy = map.at("dir_y", next);
-        double emag = std::sqrt(edx * edx + edy * edy);
-        if (emag < 0.01) return 0.0;  // no direction data → free
-
-        double v_dot_d = (dx * edx + dy * edy) / (dist * emag);
-
-        // Term 1: Direction penalty (strong, only when going wrong way)
-        // max(0, -(v·d)): +1 opposite, 0 aligned or perpendicular
-        double dir_penalty = lambda_ * std::max(0.0, -v_dot_d) * signal * signal;
+        // Term 1: Direction penalty
+        // max(0, -d·Φ̄): >0 only when d and Φ̄ have opposite signs (wrong lane)
+        // multiplied by |Φ̄| for dynamic weighting
+        double dir_penalty = lambda_ * std::max(0.0,
+            -direction_ * static_cast<double>(phi)) * signal;
 
         // Term 2: Position quality (weak, proportional to step length)
-        // (1 - |Φ̄|): 0 at center → cost=0, 1 at edge → cost≈step
+        // (1 - |Φ̄|): 0 at center, ~1 at edge → mild center attraction
         double qual_penalty = lambda_qual_ * (1.0 - signal) * dist;
 
         return dir_penalty + qual_penalty;
@@ -150,7 +129,7 @@ public:
         }
 
         // Lane-guided A*: distance + lane compliance penalty
-        return dist + laneComplianceCost(map, cur, next);
+        return dist + laneComplianceCost(map, cur, next, dist);
     }
 
     // ---- A* Search ----
@@ -230,15 +209,14 @@ public:
     }
 
 private:
-    bool use_local_dir_;  // true = vector field, false = legacy scalar d
-    int direction_;       // +1/-1 (legacy fallback)
+    int direction_;       // +1=downstream/eastbound, -1=upstream/westbound
     double lambda_;       // direction penalty weight (strong)
     double lambda_qual_;  // position quality weight (weak)
 };
 
 // ====================== Globals ======================
 
-GridMap global_map({"phibar", "dir_x", "dir_y", "obstacle", "visualization"});
+GridMap global_map({"phibar", "obstacle", "visualization"});
 AISPlanner planner;
 bool has_start = false, has_goal = false;
 double g_sx, g_sy, g_gx, g_gy;
@@ -367,12 +345,11 @@ int main(int argc, char** argv) {
     nh.param<std::string>("phibar_csv_path", phibar_csv_path,
         "/root/demon3.16/src/ais_navigation/map/navigation_potential_field.csv");
 
-    std::string dir_x_csv_path;
-    nh.param<std::string>("dir_x_csv_path", dir_x_csv_path,
-        "/root/demon3.16/src/ais_navigation/map/dir_x.csv");
-    std::string dir_y_csv_path;
-    nh.param<std::string>("dir_y_csv_path", dir_y_csv_path,
-        "/root/demon3.16/src/ais_navigation/map/dir_y.csv");
+    int lane_direction;
+    nh.param<int>("lane_direction", lane_direction, -1);
+
+    bool auto_direction;
+    nh.param<bool>("auto_direction", auto_direction, true);
 
     double lane_lambda;
     nh.param<double>("lane_lambda", lane_lambda, 200.0);
@@ -385,9 +362,6 @@ int main(int argc, char** argv) {
 
     bool use_lane_guidance;
     nh.param<bool>("use_lane_guidance", use_lane_guidance, true);
-
-    bool use_local_dir;
-    nh.param<bool>("use_local_dir", use_local_dir, true);
 
     // --- Publishers ---
     ros::Publisher map_pub =
@@ -410,28 +384,19 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // Load expected direction vector field d(p) ∈ ℝ²
-    bool has_dir_x = loadCSVToLayer(dir_x_csv_path, "dir_x", map_resolution);
-    bool has_dir_y = loadCSVToLayer(dir_y_csv_path, "dir_y", map_resolution);
-    bool has_vector_field = has_dir_x && has_dir_y;
-
     // Set visualization layer
     if (global_map.exists("phibar")) {
         global_map["visualization"] = global_map["phibar"].array().abs();
     }
 
     // Configure planner
-    planner.setUseLocalDir(use_local_dir && has_vector_field);
     planner.setLambda(lane_lambda);
 
     ROS_INFO("[AIS Planner] Node started.");
     ROS_INFO("  Phibar CSV: %s", phibar_csv_path.c_str());
-    ROS_INFO("  Vector field: dir_x=%s, dir_y=%s",
-             has_dir_x ? "ok" : "missing", has_dir_y ? "ok" : "missing");
-    ROS_INFO("  Mode: %s",
-             use_local_dir && has_vector_field ?
-             "vector-field d(p)" : "legacy scalar-d");
-    ROS_INFO("  Lane lambda: %.2f", lane_lambda);
+    ROS_INFO("  Mode: scalar-d (auto_direction=%s)", auto_direction ? "true" : "false");
+    ROS_INFO("  Lane direction: %d, Lane lambda: %.2f, Qual lambda: %.2f",
+             lane_direction, lane_lambda, lambda_qual);
     ROS_INFO("  Topics: /ais_planned_path, /ais_traditional_path");
 
     // --- Main loop ---
@@ -441,19 +406,31 @@ int main(int argc, char** argv) {
         nh.getParam("lane_lambda", lane_lambda);
         nh.getParam("lambda_qual", lambda_qual);
         nh.getParam("use_lane_guidance", use_lane_guidance);
+        nh.getParam("auto_direction", auto_direction);
         planner.setLambda(lane_lambda);
         planner.setLambdaQual(lambda_qual);
 
         if (has_start && has_goal) {
             Position ps(g_sx, g_sy), pg(g_gx, g_gy);
+
+            if (auto_direction) {
+                double dx = pg.x() - ps.x();
+                double dy = pg.y() - ps.y();
+                // Eastbound → d=+1, Westbound → d=-1
+                lane_direction = (dx > 0) ? 1 : -1;
+            } else {
+                nh.getParam("lane_direction", lane_direction);
+            }
+            planner.setDirection(lane_direction);
+
             Index si, gi;
             bool s_in = global_map.getIndex(ps, si);
             bool g_in = global_map.getIndex(pg, gi);
 
             if (s_in && g_in) {
                 ROS_INFO("[AIS Planner] Request: Start(%.2f, %.2f) -> "
-                         "Goal(%.2f, %.2f)",
-                         ps.x(), ps.y(), pg.x(), pg.y());
+                         "Goal(%.2f, %.2f), d=%d",
+                         ps.x(), ps.y(), pg.x(), pg.y(), lane_direction);
 
                 // Run lane-guided A* (with navigation potential field)
                 if (use_lane_guidance) {

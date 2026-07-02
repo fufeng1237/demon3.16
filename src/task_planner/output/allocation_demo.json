@@ -1,0 +1,514 @@
+{
+  "assignments": [
+    {
+      "ship_id": 0,
+      "task_id": 1,
+      "order_index": 0,
+      "estimated_cost": 966.52
+    },
+    {
+      "ship_id": 0,
+      "task_id": 3,
+      "order_index": 1,
+      "estimated_cost": 415.51
+    },
+    {
+      "ship_id": 1,
+      "task_id": 6,
+      "order_index": 0,
+      "estimated_cost": 2481.87
+    },
+    {
+      "ship_id": 1,
+      "task_id": 7,
+      "order_index": 1,
+      "estimated_cost": 2702.78
+    },
+    {
+      "ship_id": 1,
+      "task_id": 0,
+      "order_index": 2,
+      "estimated_cost": 3096.95
+    },
+    {
+      "ship_id": 2,
+      "task_id": 10,
+      "order_index": 0,
+      "estimated_cost": 1699.4
+    },
+    {
+      "ship_id": 2,
+      "task_id": 12,
+      "order_index": 1,
+      "estimated_cost": 2370.1
+    },
+    {
+      "ship_id": 2,
+      "task_id": 13,
+      "order_index": 2,
+      "estimated_cost": 1699.52
+    },
+    {
+      "ship_id": 3,
+      "task_id": 16,
+      "order_index": 0,
+      "estimated_cost": 1160.56
+    },
+    {
+      "ship_id": 3,
+      "task_id": 14,
+      "order_index": 1,
+      "estimated_cost": 2067.09
+    },
+    {
+      "ship_id": 3,
+      "task_id": 8,
+      "order_index": 2,
+      "estimated_cost": 3866.71
+    }
+  ],
+  "ships": [
+    {
+      "id": 0,
+      "name": "Ship_0",
+      "max_payload": 2000.0,
+      "max_energy": 500.0,
+      "max_speed": 8.0,
+      "position_x": 7000.0,
+      "position_y": 2000.0,
+      "current_node": 105,
+      "energy": 450.0,
+      "load": 1800.0,
+      "health": 1.0,
+      "status": "idle",
+      "task_queue": [
+        1,
+        3
+      ],
+      "execution_order": [
+        1,
+        3
+      ],
+      "energy_per_km": 2.5,
+      "ETA": 293.569225
+    },
+    {
+      "id": 1,
+      "name": "Ship_1",
+      "max_payload": 1500.0,
+      "max_energy": 400.0,
+      "max_speed": 7.5,
+      "position_x": 6000.0,
+      "position_y": 1440.0,
+      "current_node": 110,
+      "energy": 360.0,
+      "load": 1400.0,
+      "health": 1.0,
+      "status": "idle",
+      "task_queue": [
+        6,
+        7,
+        0
+      ],
+      "execution_order": [
+        6,
+        7,
+        0
+      ],
+      "energy_per_km": 2.2,
+      "ETA": 1345.98316
+    },
+    {
+      "id": 2,
+      "name": "Ship_2",
+      "max_payload": 2500.0,
+      "max_energy": 600.0,
+      "max_speed": 7.0,
+      "position_x": 1200.0,
+      "position_y": 400.0,
+      "current_node": 114,
+      "energy": 540.0,
+      "load": 2500.0,
+      "health": 1.0,
+      "status": "idle",
+      "task_queue": [
+        10,
+        12,
+        13
+      ],
+      "execution_order": [
+        10,
+        12,
+        13
+      ],
+      "energy_per_km": 3.0,
+      "ETA": 1279.7908428571427
+    },
+    {
+      "id": 3,
+      "name": "Ship_3",
+      "max_payload": 1800.0,
+      "max_energy": 450.0,
+      "max_speed": 8.5,
+      "position_x": 2600.0,
+      "position_y": 800.0,
+      "current_node": 108,
+      "energy": 405.0,
+      "load": 1800.0,
+      "health": 1.0,
+      "status": "idle",
+      "task_queue": [
+        8,
+        14,
+        16
+      ],
+      "execution_order": [
+        16,
+        14,
+        8
+      ],
+      "energy_per_km": 2.8,
+      "ETA": 725.8468941176469
+    }
+  ],
+  "tasks": [
+    {
+      "id": 0,
+      "pickup_node": 105,
+      "delivery_node": 106,
+      "payload": 300.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "assigned",
+      "assigned_ship": 1
+    },
+    {
+      "id": 1,
+      "pickup_node": 105,
+      "delivery_node": 107,
+      "payload": 800.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 0
+    },
+    {
+      "id": 2,
+      "pickup_node": 105,
+      "delivery_node": 108,
+      "payload": 800.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 3,
+      "pickup_node": 105,
+      "delivery_node": 109,
+      "payload": 1000.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 0
+    },
+    {
+      "id": 4,
+      "pickup_node": 105,
+      "delivery_node": 110,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 5,
+      "pickup_node": 105,
+      "delivery_node": 111,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 2,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 6,
+      "pickup_node": 105,
+      "delivery_node": 112,
+      "payload": 800.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 1
+    },
+    {
+      "id": 7,
+      "pickup_node": 105,
+      "delivery_node": 113,
+      "payload": 300.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 1
+    },
+    {
+      "id": 8,
+      "pickup_node": 105,
+      "delivery_node": 114,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 3
+    },
+    {
+      "id": 9,
+      "pickup_node": 106,
+      "delivery_node": 105,
+      "payload": 300.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 10,
+      "pickup_node": 106,
+      "delivery_node": 107,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 2
+    },
+    {
+      "id": 11,
+      "pickup_node": 106,
+      "delivery_node": 108,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 2,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 12,
+      "pickup_node": 106,
+      "delivery_node": 109,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 2
+    },
+    {
+      "id": 13,
+      "pickup_node": 106,
+      "delivery_node": 110,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 2
+    },
+    {
+      "id": 14,
+      "pickup_node": 106,
+      "delivery_node": 111,
+      "payload": 800.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 3
+    },
+    {
+      "id": 15,
+      "pickup_node": 106,
+      "delivery_node": 112,
+      "payload": 1000.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 16,
+      "pickup_node": 106,
+      "delivery_node": 113,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "assigned",
+      "assigned_ship": 3
+    },
+    {
+      "id": 17,
+      "pickup_node": 106,
+      "delivery_node": 114,
+      "payload": 1000.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 2,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 18,
+      "pickup_node": 107,
+      "delivery_node": 105,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 19,
+      "pickup_node": 107,
+      "delivery_node": 106,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 20,
+      "pickup_node": 107,
+      "delivery_node": 108,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 21,
+      "pickup_node": 107,
+      "delivery_node": 109,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 2,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 22,
+      "pickup_node": 107,
+      "delivery_node": 110,
+      "payload": 800.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 23,
+      "pickup_node": 107,
+      "delivery_node": 111,
+      "payload": 300.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 24,
+      "pickup_node": 107,
+      "delivery_node": 112,
+      "payload": 1000.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 25,
+      "pickup_node": 107,
+      "delivery_node": 113,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 26,
+      "pickup_node": 107,
+      "delivery_node": 114,
+      "payload": 500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 1,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 27,
+      "pickup_node": 108,
+      "delivery_node": 105,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 3,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 28,
+      "pickup_node": 108,
+      "delivery_node": 106,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 2,
+      "status": "waiting",
+      "assigned_ship": -1
+    },
+    {
+      "id": 29,
+      "pickup_node": 108,
+      "delivery_node": 107,
+      "payload": 1500.0,
+      "start_time": 0.0,
+      "deadline": 28800.0,
+      "priority": 2,
+      "status": "waiting",
+      "assigned_ship": -1
+    }
+  ],
+  "total_distance": 27.57,
+  "total_energy": 174.65,
+  "completed_tasks": 0,
+  "unassigned_tasks": 19,
+  "cost_breakdown": {
+    "distance_km": 27.57,
+    "energy_kwh": 174.65
+  }
+}

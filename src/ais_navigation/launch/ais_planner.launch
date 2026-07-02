@@ -10,12 +10,10 @@
         <!-- Path to the navigation potential field CSV -->
         <param name="phibar_csv_path"
                value="$(find ais_navigation)/map/navigation_potential_field.csv" />
-        <!-- Vector field mode: expected heading d(p) ∈ ℝ² per cell -->
-        <param name="use_local_dir" value="true" />
-        <param name="dir_x_csv_path"
-               value="$(find ais_navigation)/map/dir_x.csv" />
-        <param name="dir_y_csv_path"
-               value="$(find ais_navigation)/map/dir_y.csv" />
+        <!-- Scalar direction: +1=downstream/eastbound, -1=upstream/westbound -->
+        <param name="lane_direction" value="-1" />
+        <!-- Auto-determine d from start→goal: eastbound→+1, westbound→-1 -->
+        <param name="auto_direction" value="false" />
         <!-- Direction penalty weight (strong): wrong-way penalty -->
         <param name="lane_lambda" value="5.0" />
         <!-- Position quality weight (weak): edge-vs-center preference -->
