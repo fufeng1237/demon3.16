@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/devel
+
+Name: usv_realtime
+Description: Description of usv_realtime
+Version: 0.0.1
+Cflags: -I/root/demon3.16/src/usv_realtime/include
+Libs: -L${prefix}/lib -lusv_realtime
+Requires: roscpp usv_common usv_roadmap usv_path_planning usv_energy usv_allocation usv_heterogeneous_graph

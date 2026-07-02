@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/install
+
+Name: usv_heterogeneous_graph
+Description: Description of usv_heterogeneous_graph
+Version: 0.0.1
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lusv_heterogeneous_graph
+Requires: roscpp usv_common

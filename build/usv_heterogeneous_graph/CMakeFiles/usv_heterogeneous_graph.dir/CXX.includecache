@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/demon3.16/src/usv_common/include/usv_common/io.h
+string
+-
+vector
+-
+unordered_map
+-
+
+/root/demon3.16/src/usv_heterogeneous_graph/include/usv_heterogeneous_graph/heterogeneous_graph.h
+usv_common/io.h
+/root/demon3.16/src/usv_heterogeneous_graph/include/usv_heterogeneous_graph/usv_common/io.h
+vector
+-
+unordered_map
+-
+string
+-
+cmath
+-
+limits
+-
+
+/root/demon3.16/src/usv_heterogeneous_graph/src/heterogeneous_graph.cpp
+usv_heterogeneous_graph/heterogeneous_graph.h
+/root/demon3.16/src/usv_heterogeneous_graph/src/usv_heterogeneous_graph/heterogeneous_graph.h
+algorithm
+-
+cmath
+-
+iostream
+-
+

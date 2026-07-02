@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/install
+
+Name: usv_common
+Description: Description of usv_common
+Version: 0.0.1
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lusv_common
+Requires: roscpp

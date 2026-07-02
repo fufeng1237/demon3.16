@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/devel
+
+Name: usv_heterogeneous_graph
+Description: Description of usv_heterogeneous_graph
+Version: 0.0.1
+Cflags: -I/root/demon3.16/src/usv_heterogeneous_graph/include
+Libs: -L${prefix}/lib -lusv_heterogeneous_graph
+Requires: roscpp usv_common

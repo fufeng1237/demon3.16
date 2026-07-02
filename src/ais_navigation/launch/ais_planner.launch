@@ -10,10 +10,16 @@
         <!-- Path to the navigation potential field CSV -->
         <param name="phibar_csv_path"
                value="$(find ais_navigation)/map/navigation_potential_field.csv" />
-        <!-- Desired direction: +1 = downstream, -1 = upstream -->
-        <param name="lane_direction" value="1" />
-        <!-- Lane compliance weight (lambda in paper): higher = stronger lane enforcement -->
+        <!-- Vector field mode: expected heading d(p) ∈ ℝ² per cell -->
+        <param name="use_local_dir" value="true" />
+        <param name="dir_x_csv_path"
+               value="$(find ais_navigation)/map/dir_x.csv" />
+        <param name="dir_y_csv_path"
+               value="$(find ais_navigation)/map/dir_y.csv" />
+        <!-- Direction penalty weight (strong): wrong-way penalty -->
         <param name="lane_lambda" value="5.0" />
+        <!-- Position quality weight (weak): edge-vs-center preference -->
+        <param name="lambda_qual" value="1.0" />
         <!-- Grid resolution (must match CSV) -->
         <param name="map_resolution" value="0.5" />
         <!-- Enable/disable lane guidance -->
@@ -32,7 +38,7 @@
         <!-- Lane deviation weight (omega_v in paper) -->
         <param name="weight_lane" value="0.1" />
         <!-- Lane direction: must match planner -->
-        <param name="lane_direction" value="1" />
+        <param name="lane_direction" value="-1" />
         <!-- Convergence tolerance -->
         <param name="tolerance" value="0.0001" />
         <!-- Path to Phi-bar CSV (loaded locally for efficiency) -->
@@ -54,7 +60,7 @@
         <param name="weight_data" value="0.1" />
         <param name="weight_smooth" value="0.4" />
         <param name="weight_lane" value="0.0" />   <!-- No lane force -->
-        <param name="lane_direction" value="1" />
+        <param name="lane_direction" value="-1" />
         <param name="tolerance" value="0.0001" />
         <param name="phibar_csv_path"
                value="$(find ais_navigation)/map/navigation_potential_field.csv" />

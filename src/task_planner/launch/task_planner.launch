@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ============================================================ -->
+    <!-- Task Planner - 内河船舶任务调度系统                             -->
+    <!-- ============================================================ -->
+
+    <!-- Grid map CSV (same as waterway_map) -->
+    <arg name="csv_path" default="/root/demon3.16/src/waterway_map/map/combined_distance_field.csv" />
+
+    <!-- Configuration files -->
+    <arg name="ports_config" default="/root/demon3.16/src/task_planner/config/ports.yaml" />
+    <arg name="gas_stations_config" default="/root/demon3.16/src/task_planner/config/gas_stations.yaml" />
+    <arg name="ships_config" default="/root/demon3.16/src/task_planner/config/ships.yaml" />
+    <arg name="tasks_config" default="" />
+
+    <!-- Output directory -->
+    <arg name="output_dir" default="/root/demon3.16/src/task_planner/output" />
+
+    <!-- Scheduling parameters -->
+    <arg name="scheduling_interval" default="5.0" />
+    <arg name="map_resolution" default="0.5" />
+    <arg name="energy_threshold" default="0.2" />
+    <arg name="health_threshold" default="0.3" />
+    <arg name="refuel_penalty" default="0.3" />
+    <arg name="transfer_penalty" default="0.2" />
+
+    <!-- Main scheduler node -->
+    <node name="task_scheduler_node" pkg="task_planner" type="task_scheduler_node.py" output="screen">
+        <param name="csv_path" value="$(arg csv_path)" />
+        <param name="ports_config" value="$(arg ports_config)" />
+        <param name="gas_stations_config" value="$(arg gas_stations_config)" />
+        <param name="ships_config" value="$(arg ships_config)" />
+        <param name="tasks_config" value="$(arg tasks_config)" />
+        <param name="output_dir" value="$(arg output_dir)" />
+        <param name="scheduling_interval" value="$(arg scheduling_interval)" />
+        <param name="map_resolution" value="$(arg map_resolution)" />
+        <param name="energy_threshold" value="$(arg energy_threshold)" />
+        <param name="health_threshold" value="$(arg health_threshold)" />
+        <param name="refuel_penalty" value="$(arg refuel_penalty)" />
+        <param name="transfer_penalty" value="$(arg transfer_penalty)" />
+    </node>
+
+    <!-- Optional: RViz for visualization -->
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find task_planner)/config/task_planner.rviz" /> -->
+</launch>

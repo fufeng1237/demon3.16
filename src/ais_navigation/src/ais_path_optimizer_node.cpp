@@ -42,7 +42,7 @@ public:
 
         // ---- Lane deviation parameters ----
         nh.param("weight_lane", weight_lane_, 0.1);
-        nh.param("lane_direction", lane_direction_, 1);
+        nh.param("lane_direction", lane_direction_, -1);
 
         // ---- Iteration control ----
         nh.param("tolerance", tolerance_, 0.0001);

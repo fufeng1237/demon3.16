@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/demon3.16/src/usv_common/include/usv_common/io.h
+string
+-
+vector
+-
+unordered_map
+-
+
+/root/demon3.16/src/usv_common/src/io.cpp
+usv_common/io.h
+/root/demon3.16/src/usv_common/src/usv_common/io.h
+iostream
+-
+fstream
+-
+regex
+-
+locale
+-
+

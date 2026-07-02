@@ -1,0 +1,478 @@
+[
+  {
+    "type": "reallocation",
+    "event": {
+      "type": "energy_low",
+      "ship_id": 0,
+      "task_id": -1,
+      "timestamp": 0.0,
+      "data": {
+        "energy_ratio": 0.15,
+        "energy": 75.0,
+        "max_energy": 500.0
+      }
+    },
+    "decision": {
+      "triggered": true,
+      "event": {
+        "type": "energy_low",
+        "ship_id": 0,
+        "task_id": -1,
+        "timestamp": 0.0,
+        "data": {
+          "energy_ratio": 0.15,
+          "energy": 75.0,
+          "max_energy": 500.0
+        }
+      },
+      "scope": "local",
+      "action": "refuel",
+      "cost_before": 2400355.25,
+      "cost_after": 355.25,
+      "affected_ships": [
+        0
+      ],
+      "released_tasks": [],
+      "new_assignments": [],
+      "rationale": "Refuel at GS_28 (dist=0.3km) cost_a=0.4 <= cost_b=2400.0"
+    },
+    "before_ships": [
+      {
+        "id": 0,
+        "name": "Ship_0",
+        "max_payload": 2000.0,
+        "max_energy": 500.0,
+        "max_speed": 8.0,
+        "position_x": 1068.0,
+        "position_y": 688.0,
+        "current_node": 18,
+        "energy": 75.0,
+        "load": 2000.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          4,
+          14
+        ],
+        "execution_order": [
+          4,
+          14
+        ],
+        "energy_per_km": 2.5,
+        "ETA": 305.4247992694346
+      },
+      {
+        "id": 1,
+        "name": "Ship_1",
+        "max_payload": 1500.0,
+        "max_energy": 400.0,
+        "max_speed": 7.5,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 360.0,
+        "load": 1500.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          19
+        ],
+        "execution_order": [
+          19
+        ],
+        "energy_per_km": 2.2,
+        "ETA": 209.67298374051964
+      },
+      {
+        "id": 2,
+        "name": "Ship_2",
+        "max_payload": 2500.0,
+        "max_energy": 600.0,
+        "max_speed": 7.0,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 540.0,
+        "load": 2300.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          0,
+          1,
+          3,
+          9
+        ],
+        "execution_order": [
+          1,
+          0,
+          9,
+          3
+        ],
+        "energy_per_km": 3.0,
+        "ETA": 670.8875907659761
+      },
+      {
+        "id": 3,
+        "name": "Ship_3",
+        "max_payload": 1800.0,
+        "max_energy": 450.0,
+        "max_speed": 8.5,
+        "position_x": 4102.0,
+        "position_y": 976.0,
+        "current_node": 12,
+        "energy": 405.0,
+        "load": 1800.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          18,
+          2
+        ],
+        "execution_order": [
+          18,
+          2
+        ],
+        "energy_per_km": 2.8,
+        "ETA": 242.6518633391188
+      }
+    ],
+    "after_ships": [
+      {
+        "id": 0,
+        "name": "Ship_0",
+        "max_payload": 2000.0,
+        "max_energy": 500.0,
+        "max_speed": 8.0,
+        "position_x": 1068.0,
+        "position_y": 688.0,
+        "current_node": 18,
+        "energy": 75.0,
+        "load": 2000.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          4,
+          14
+        ],
+        "execution_order": [
+          4,
+          14
+        ],
+        "energy_per_km": 2.5,
+        "ETA": 305.4247992694346
+      },
+      {
+        "id": 1,
+        "name": "Ship_1",
+        "max_payload": 1500.0,
+        "max_energy": 400.0,
+        "max_speed": 7.5,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 360.0,
+        "load": 1500.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          19
+        ],
+        "execution_order": [
+          19
+        ],
+        "energy_per_km": 2.2,
+        "ETA": 209.67298374051964
+      },
+      {
+        "id": 2,
+        "name": "Ship_2",
+        "max_payload": 2500.0,
+        "max_energy": 600.0,
+        "max_speed": 7.0,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 540.0,
+        "load": 2300.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          0,
+          1,
+          3,
+          9
+        ],
+        "execution_order": [
+          1,
+          0,
+          9,
+          3
+        ],
+        "energy_per_km": 3.0,
+        "ETA": 670.8875907659761
+      },
+      {
+        "id": 3,
+        "name": "Ship_3",
+        "max_payload": 1800.0,
+        "max_energy": 450.0,
+        "max_speed": 8.5,
+        "position_x": 4102.0,
+        "position_y": 976.0,
+        "current_node": 12,
+        "energy": 405.0,
+        "load": 1800.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          18,
+          2
+        ],
+        "execution_order": [
+          18,
+          2
+        ],
+        "energy_per_km": 2.8,
+        "ETA": 242.6518633391188
+      }
+    ]
+  },
+  {
+    "type": "reallocation",
+    "event": {
+      "type": "energy_low",
+      "ship_id": 0,
+      "task_id": -1,
+      "timestamp": 0.0,
+      "data": {
+        "energy_ratio": 0.15,
+        "energy": 75.0,
+        "max_energy": 500.0
+      }
+    },
+    "decision": {
+      "triggered": true,
+      "event": {
+        "type": "energy_low",
+        "ship_id": 0,
+        "task_id": -1,
+        "timestamp": 0.0,
+        "data": {
+          "energy_ratio": 0.15,
+          "energy": 75.0,
+          "max_energy": 500.0
+        }
+      },
+      "scope": "local",
+      "action": "refuel",
+      "cost_before": 2400355.25,
+      "cost_after": 355.25,
+      "affected_ships": [
+        0
+      ],
+      "released_tasks": [],
+      "new_assignments": [],
+      "rationale": "Refuel at GS_28 (dist=0.3km) cost_a=0.4 <= cost_b=2400.0"
+    },
+    "before_ships": [
+      {
+        "id": 0,
+        "name": "Ship_0",
+        "max_payload": 2000.0,
+        "max_energy": 500.0,
+        "max_speed": 8.0,
+        "position_x": 1068.0,
+        "position_y": 688.0,
+        "current_node": 18,
+        "energy": 75.0,
+        "load": 2000.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          4,
+          14
+        ],
+        "execution_order": [
+          4,
+          14
+        ],
+        "energy_per_km": 2.5,
+        "ETA": 305.4247992694346
+      },
+      {
+        "id": 1,
+        "name": "Ship_1",
+        "max_payload": 1500.0,
+        "max_energy": 400.0,
+        "max_speed": 7.5,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 360.0,
+        "load": 1500.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          19
+        ],
+        "execution_order": [
+          19
+        ],
+        "energy_per_km": 2.2,
+        "ETA": 209.67298374051964
+      },
+      {
+        "id": 2,
+        "name": "Ship_2",
+        "max_payload": 2500.0,
+        "max_energy": 600.0,
+        "max_speed": 7.0,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 540.0,
+        "load": 2300.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          0,
+          1,
+          3,
+          9
+        ],
+        "execution_order": [
+          1,
+          0,
+          9,
+          3
+        ],
+        "energy_per_km": 3.0,
+        "ETA": 670.8875907659761
+      },
+      {
+        "id": 3,
+        "name": "Ship_3",
+        "max_payload": 1800.0,
+        "max_energy": 450.0,
+        "max_speed": 8.5,
+        "position_x": 4102.0,
+        "position_y": 976.0,
+        "current_node": 12,
+        "energy": 405.0,
+        "load": 1800.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          18,
+          2
+        ],
+        "execution_order": [
+          18,
+          2
+        ],
+        "energy_per_km": 2.8,
+        "ETA": 242.6518633391188
+      }
+    ],
+    "after_ships": [
+      {
+        "id": 0,
+        "name": "Ship_0",
+        "max_payload": 2000.0,
+        "max_energy": 500.0,
+        "max_speed": 8.0,
+        "position_x": 1068.0,
+        "position_y": 688.0,
+        "current_node": 18,
+        "energy": 75.0,
+        "load": 2000.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          4,
+          14
+        ],
+        "execution_order": [
+          4,
+          14
+        ],
+        "energy_per_km": 2.5,
+        "ETA": 305.4247992694346
+      },
+      {
+        "id": 1,
+        "name": "Ship_1",
+        "max_payload": 1500.0,
+        "max_energy": 400.0,
+        "max_speed": 7.5,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 360.0,
+        "load": 1500.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          19
+        ],
+        "execution_order": [
+          19
+        ],
+        "energy_per_km": 2.2,
+        "ETA": 209.67298374051964
+      },
+      {
+        "id": 2,
+        "name": "Ship_2",
+        "max_payload": 2500.0,
+        "max_energy": 600.0,
+        "max_speed": 7.0,
+        "position_x": 7430.0,
+        "position_y": 2048.0,
+        "current_node": 23,
+        "energy": 540.0,
+        "load": 2300.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          0,
+          1,
+          3,
+          9
+        ],
+        "execution_order": [
+          1,
+          0,
+          9,
+          3
+        ],
+        "energy_per_km": 3.0,
+        "ETA": 670.8875907659761
+      },
+      {
+        "id": 3,
+        "name": "Ship_3",
+        "max_payload": 1800.0,
+        "max_energy": 450.0,
+        "max_speed": 8.5,
+        "position_x": 4102.0,
+        "position_y": 976.0,
+        "current_node": 12,
+        "energy": 405.0,
+        "load": 1800.0,
+        "health": 1.0,
+        "status": "idle",
+        "task_queue": [
+          18,
+          2
+        ],
+        "execution_order": [
+          18,
+          2
+        ],
+        "energy_per_km": 2.8,
+        "ETA": 242.6518633391188
+      }
+    ]
+  }
+]

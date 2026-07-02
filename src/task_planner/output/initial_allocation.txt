@@ -1,0 +1,63 @@
+============================================================
+  INITIAL ALLOCATION
+============================================================
+────────────────────────────────────────────────────────────
+Ship_0 (capacity: 2000.0t, energy: 450/500kWh)
+  Task sequence: T4 → T14
+  Step 1: Navigate → Port_A (load, 500.0t, dist=0.0km)
+  Step 2: Navigate → Port_F (unload, 500.0t, dist=1.0km)
+  Step 3: Navigate → Port_B (load, 1500.0t, dist=0.8km)
+  Step 4: Navigate → Port_G (unload, 1500.0t, dist=0.6km)
+  ──────────────────────────────
+  Estimated total distance: 2.4 km
+  Estimated total energy: 6.1 kWh
+  Estimated total time: 0.1 h
+  Remaining capacity: 0 t
+
+────────────────────────────────────────────────────────────
+Ship_1 (capacity: 1500.0t, energy: 360/400kWh)
+  Task sequence: T19
+  Step 1: Navigate → Port_C (load, 1500.0t, dist=0.9km)
+  Step 2: Navigate → Port_B (unload, 1500.0t, dist=0.7km)
+  ──────────────────────────────
+  Estimated total distance: 1.6 km
+  Estimated total energy: 3.5 kWh
+  Estimated total time: 0.1 h
+  Remaining capacity: 0 t
+
+────────────────────────────────────────────────────────────
+Ship_2 (capacity: 2500.0t, energy: 540/600kWh)
+  Task sequence: T1 → T0 → T9 → T3
+  Step 1: Navigate → Port_A (load, 500.0t, dist=1.0km)
+  Step 2: Navigate → Port_C (unload, 500.0t, dist=0.8km)
+  Step 3: Navigate → Port_A (load, 500.0t, dist=0.8km)
+  Step 4: Navigate → Port_B (unload, 500.0t, dist=0.4km)
+  Step 5: Navigate → Port_B (load, 300.0t, dist=0.0km)
+  Step 6: Navigate → Port_A (unload, 300.0t, dist=0.4km)
+  Step 7: Navigate → Port_A (load, 1000.0t, dist=0.0km)
+  Step 8: Navigate → Port_E (unload, 1000.0t, dist=1.1km)
+  ──────────────────────────────
+  Estimated total distance: 4.7 km
+  Estimated total energy: 14.1 kWh
+  Estimated total time: 0.2 h
+  Remaining capacity: 200 t
+
+────────────────────────────────────────────────────────────
+Ship_3 (capacity: 1800.0t, energy: 405/450kWh)
+  Task sequence: T18 → T2
+  Step 1: Navigate → Port_C (load, 1500.0t, dist=0.5km)
+  Step 2: Navigate → Port_A (unload, 1500.0t, dist=0.8km)
+  Step 3: Navigate → Port_A (load, 300.0t, dist=0.0km)
+  Step 4: Navigate → Port_D (unload, 300.0t, dist=0.7km)
+  ──────────────────────────────
+  Estimated total distance: 2.1 km
+  Estimated total energy: 5.8 kWh
+  Estimated total time: 0.1 h
+  Remaining capacity: 0 t
+
+────────────────────────────────────────────────────────────
+Fleet Summary:
+  Total distance: 10.8 km
+  Total energy: 71.2 kWh
+  Completed/to assign: 0/11
+============================================================

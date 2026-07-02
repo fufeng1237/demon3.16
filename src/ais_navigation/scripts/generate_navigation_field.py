@@ -3,16 +3,17 @@
 generate_navigation_field.py
 Build the navigation potential field Phi-bar from AIS trajectory data.
 
-Method (ref: 基于AIS导航势场的无人艇路径规划.md):
+Method (v2 - local direction-aware):
   1. Read AIS trajectory points from XLS files
-  2. Classify points as downstream/upstream by COG (Course Over Ground)
-  3. Compute Gaussian KDE for each directional set on the map grid
-  4. Phi-bar = (f_down - f_up) / (f_down + f_up + epsilon)  in [-1, 1]
+  2. Build local dominant direction field theta_local(p) from AIS COG data
+  3. Direction-weighted KDE: each point weighted by cos(COG - theta_local)
+  4. Phi-bar = weighted_KDE_sum / weighted_KDE_abs_sum  in [-1, 1]
 
 Output:
-  - navigation_potential_field.csv  (180 rows x 90 cols transpose, values in [-1, 1])
-  - phibar_grad_x.csv               (x-gradient of Phi-bar)
-  - phibar_grad_y.csv               (y-gradient of Phi-bar)
+  - navigation_potential_field.csv
+  - phibar_grad_x.csv
+  - phibar_grad_y.csv
+  - local_direction.csv (for debugging)
 """
 
 import numpy as np
@@ -57,12 +58,12 @@ RESOLUTION_M = 0.5
 GRID_COLS = GEO_REF["img_cols"]  # 152
 GRID_ROWS = GEO_REF["img_rows"]  # 78
 
-# Grid dimensions calculated from PGM extent
-GRID_COLS = int(np.ceil(WORLD_X_MAX / RESOLUTION_M))  # ~601
-GRID_ROWS = int(np.ceil(WORLD_Y_MAX / RESOLUTION_M))  # ~300
-
 # KDE kernel bandwidth in meters
-BANDWIDTH_M = 5.0
+# Smaller bandwidth = tighter signals, better direction separation
+BANDWIDTH_M = 2.0
+
+# Local direction field radius in meters
+LOCAL_DIR_RADIUS_M = 5.0
 
 # Small constant to avoid division by zero
 EPSILON = 1e-6
@@ -80,21 +81,28 @@ AIS_DIRS = [
 
 def read_ais_data(directories):
     """
-    Read all AIS XLS files and return arrays of (lon, lat, cog).
+    Read all AIS XLS files and return per-point arrays + trajectory direction.
 
-    XLS format (rows 0 and 1 are headers):
-      Col 0: mmsi
-      Col 1: 经度 (longitude)
-      Col 2: 纬度 (latitude)
-      Col 3: 时间 (time)
-      Col 4: 速度 (speed, knots)
-      Col 5: 船首向 (heading, deg)
-      Col 6: 对地航向 (COG, deg 0-360)
-      Col 7: 航行状态 (status)
+    Each XLS file = one ship voyage. Trajectory direction is determined by
+    net X displacement from first to last valid point:
+      net_dx > 0 → eastbound  → weight +1
+      net_dx < 0 → westbound  → weight -1
+      ambiguous  → neutral    → weight  0
+
+    All points in a file share the same direction weight.
+
+    Returns:
+      lon, lat, cog: per-point arrays
+      traj_weights: per-point trajectory direction (+1, -1, or 0)
     """
     all_lon = []
     all_lat = []
     all_cog = []
+    all_traj_weight = []
+
+    n_east = 0
+    n_west = 0
+    n_neutral = 0
 
     for d in directories:
         if not os.path.isdir(d):
@@ -106,52 +114,69 @@ def read_ais_data(directories):
 
         for fn in xls_files:
             fp = os.path.join(d, fn)
+            file_lons = []
+            file_lats = []
+            file_cogs = []
             try:
-                # Use xlrd for .xls, openpyxl for .xlsx
                 if fn.endswith(".xlsx"):
                     import openpyxl
                     wb = openpyxl.load_workbook(fp, read_only=True)
                     sh = wb.active
                     for row_idx, row in enumerate(sh.iter_rows(values_only=True)):
-                        if row_idx < 2:
-                            continue
-                        if row[1] is None or row[2] is None:
-                            continue
-                        # Convert FIRST, append only if all succeed (atomicity)
+                        if row_idx < 2: continue
+                        if row[1] is None or row[2] is None: continue
                         try:
-                            lon_val = float(row[1])
-                            lat_val = float(row[2])
-                            cog_val = float(row[6]) if row[6] is not None else np.nan
-                        except (ValueError, IndexError, TypeError):
-                            continue
-                        all_lon.append(lon_val)
-                        all_lat.append(lat_val)
-                        all_cog.append(cog_val)
+                            file_lons.append(float(row[1]))
+                            file_lats.append(float(row[2]))
+                            file_cogs.append(float(row[6]) if row[6] is not None else np.nan)
+                        except (ValueError, IndexError, TypeError): continue
                     wb.close()
                 else:
                     import xlrd
                     wb = xlrd.open_workbook(fp)
                     sh = wb.sheet_by_index(0)
                     for r in range(2, sh.nrows):
-                        # Convert FIRST, append only if all succeed (atomicity)
                         try:
-                            lon_val = float(sh.cell_value(r, 1))
-                            lat_val = float(sh.cell_value(r, 2))
-                            cog_val = float(sh.cell_value(r, 6))
-                        except (ValueError, IndexError):
-                            continue
-                        all_lon.append(lon_val)
-                        all_lat.append(lat_val)
-                        all_cog.append(cog_val)
+                            file_lons.append(float(sh.cell_value(r, 1)))
+                            file_lats.append(float(sh.cell_value(r, 2)))
+                            file_cogs.append(float(sh.cell_value(r, 6)))
+                        except (ValueError, IndexError): continue
             except Exception as e:
                 print(f"    Skipping {fn}: {e}", file=sys.stderr)
                 continue
 
-    lon_arr = np.array(all_lon, dtype=np.float64)
-    lat_arr = np.array(all_lat, dtype=np.float64)
-    cog_arr = np.array(all_cog, dtype=np.float64)
+            if len(file_lons) < 3:
+                continue  # too few points to determine direction
 
-    return lon_arr, lat_arr, cog_arr
+            # Determine trajectory direction from net X displacement
+            # Use robust median of first 1/3 vs last 1/3 to avoid outliers
+            n = len(file_lons)
+            first_lon = np.median(file_lons[:max(1, n // 3)])
+            last_lon = np.median(file_lons[-max(1, n // 3):])
+            net_dx = last_lon - first_lon
+
+            if net_dx > 0.001:       # eastbound (left→right)
+                weight = 1.0
+                n_east += 1
+            elif net_dx < -0.001:    # westbound (right→left)
+                weight = -1.0
+                n_west += 1
+            else:
+                weight = 0.0
+                n_neutral += 1
+
+            all_lon.extend(file_lons)
+            all_lat.extend(file_lats)
+            all_cog.extend(file_cogs)
+            all_traj_weight.extend([weight] * len(file_lons))
+
+    print(f"  Trajectories: eastbound={n_east}, westbound={n_west}, neutral={n_neutral}")
+    print(f"  Total points: {len(all_lon)}")
+
+    return (np.array(all_lon, dtype=np.float64),
+            np.array(all_lat, dtype=np.float64),
+            np.array(all_cog, dtype=np.float64),
+            np.array(all_traj_weight, dtype=np.float64))
 
 
 def latlon_to_world(lon, lat):
@@ -166,57 +191,226 @@ def latlon_to_world(lon, lat):
     return world_x, world_y
 
 
-def filter_and_classify(world_x, world_y, cog):
+def compute_local_direction_field(wx, wy, cog, radius_m):
     """
-    Filter points to the PGM world coordinate bounds, then classify by COG.
+    Compute the local dominant COG direction at each grid cell center.
 
-    Classification approach:
-      - Compute the dominant COG direction using a histogram
-      - Downstream: COG within +/- 90 degrees of the dominant direction
-      - Upstream: COG within +/- 90 degrees of the opposite direction
-      - Points with invalid COG (NaN, out of 0-360) are excluded
+    For each cell center in the (GRID_ROWS x GRID_COLS) grid, collect all
+    AIS points within radius_m, then histogram-vote to find the dominant
+    COG direction.
+
+    Args:
+      wx, wy: world coords of AIS points (within PGM bounds, valid COG)
+      cog: COG values (0-360 deg)
+      radius_m: search radius in meters
+
+    Returns:
+      theta_local: (GRID_ROWS, GRID_COLS) array of dominant COG [deg],
+                   NaN where no AIS points are available.
     """
-    # Filter by world coordinate bounds (PGM extent)
-    mask_pgm = (
-        (world_x >= WORLD_X_MIN)
-        & (world_x <= WORLD_X_MAX)
-        & (world_y >= WORLD_Y_MIN)
-        & (world_y <= WORLD_Y_MAX)
+    rows, cols = GRID_ROWS, GRID_COLS
+    theta_local = np.full((rows, cols), np.nan, dtype=np.float64)
+
+    # Grid cell centers in world coords
+    xs = np.linspace(RESOLUTION_M / 2.0, WORLD_X_MAX - RESOLUTION_M / 2.0, cols)
+    ys = np.linspace(RESOLUTION_M / 2.0, WORLD_Y_MAX - RESOLUTION_M / 2.0, rows)
+
+    for r in range(rows):
+        for c in range(cols):
+            cx, cy = xs[c], ys[r]
+            # Find points within radius
+            dist_sq = (wx - cx) ** 2 + (wy - cy) ** 2
+            mask = dist_sq <= radius_m ** 2
+            cog_nearby = cog[mask]
+
+            if len(cog_nearby) < 3:
+                continue  # leave as NaN (too few points)
+
+            # Histogram vote (36 bins for 10° resolution)
+            hist, edges = np.histogram(cog_nearby, bins=36, range=(0, 360))
+            dominant = edges[np.argmax(hist)] + 5.0  # bin center
+            theta_local[r, c] = dominant
+
+        if (r + 1) % 20 == 0:
+            print(f"    Computing local direction: row {r + 1}/{rows}...")
+
+    # Fill NaN cells by nearest-neighbor propagation
+    theta_local = _fill_nan_nearest(theta_local)
+
+    n_filled = np.sum(~np.isnan(theta_local))
+    print(f"    Local direction field: {n_filled}/{rows * cols} cells filled")
+    return theta_local
+
+
+def compute_vector_field(points_wx, points_wy, points_cog,
+                         wx_grid, wy_grid, bw_m=2.0):
+    """
+    基于KDE加权平均的期望航向矢量场 d(p) ∈ ℝ².
+
+    对每个栅格点p，用高斯核对周围AIS点的COG方向做加权平均:
+      d_x(p) = Σ cos(COG_i) × K(p, p_i) / Σ K(p, p_i)
+      d_y(p) = Σ sin(COG_i) × K(p, p_i) / Σ K(p, p_i)
+
+    然后归一化为单位矢量。
+
+    返回:
+      dir_x, dir_y: (ROWS, COLS) 单位矢量分量
+    """
+    n_points = len(points_wx)
+    valid_cog = (points_cog >= 0) & (points_cog <= 360)
+    if np.sum(valid_cog) == 0:
+        print("    [WARN] No valid COG, using zero vectors")
+        return (np.zeros_like(wx_grid), np.zeros_like(wx_grid))
+
+    cog_rad = np.radians(points_cog)
+    # COG convention: 0°=north, 90°=east.
+    # Math convention: cos(0)=east, sin(0)=north.
+    # So: dir_x (east) = sin(COG), dir_y (north) = cos(COG)
+    cos_cog = np.sin(cog_rad)   # east component
+    sin_cog = np.cos(cog_rad)   # north component
+
+    rows, cols = wx_grid.shape
+    n_cells = rows * cols
+    h2 = 2.0 * bw_m * bw_m
+
+    sum_w = np.zeros((rows, cols), dtype=np.float64)
+    sum_wx = np.zeros((rows, cols), dtype=np.float64)
+    sum_wy = np.zeros((rows, cols), dtype=np.float64)
+
+    grid_x_flat = wx_grid.ravel()
+    grid_y_flat = wy_grid.ravel()
+
+    BLOCK_SIZE = max(1, min(20000, n_cells))
+    for start in range(0, n_cells, BLOCK_SIZE):
+        end = min(start + BLOCK_SIZE, n_cells)
+        gx = grid_x_flat[start:end]
+        gy = grid_y_flat[start:end]
+        dx = gx[:, np.newaxis] - points_wx[np.newaxis, :]
+        dy = gy[:, np.newaxis] - points_wy[np.newaxis, :]
+        kernel = np.exp(-(dx * dx + dy * dy) / h2)  # (BLOCK, N)
+
+        sum_w.ravel()[start:end] = np.sum(kernel, axis=1)
+        sum_wx.ravel()[start:end] = np.sum(kernel * cos_cog[np.newaxis, :], axis=1)
+        sum_wy.ravel()[start:end] = np.sum(kernel * sin_cog[np.newaxis, :], axis=1)
+
+    # Normalize to unit vectors (handle low-density cells)
+    mag = np.sqrt(sum_wx * sum_wx + sum_wy * sum_wy)
+    min_mag = 1e-6
+    valid = (sum_w.ravel() > 1e-3) & (mag.ravel() > min_mag)
+
+    dir_x = np.where(mag > min_mag, sum_wx / mag, 0.0)
+    dir_y = np.where(mag > min_mag, sum_wy / mag, 0.0)
+
+    # Fill invalid cells with nearest neighbor
+    if not np.all(valid):
+        from scipy.interpolate import griddata
+        rr, cc = np.meshgrid(np.arange(rows), np.arange(cols), indexing="ij")
+        flat_r, flat_c = rr.ravel(), cc.ravel()
+        dir_x_flat = dir_x.ravel()
+        dir_y_flat = dir_y.ravel()
+        dir_x_flat[~valid] = np.nan
+        dir_y_flat[~valid] = np.nan
+        nan_mask = np.isnan(dir_x_flat)
+        if np.sum(~nan_mask) > 0:
+            dir_x_flat[nan_mask] = griddata(
+                (flat_r[~nan_mask], flat_c[~nan_mask]),
+                dir_x_flat[~nan_mask],
+                (flat_r[nan_mask], flat_c[nan_mask]), method="nearest")
+            dir_y_flat[nan_mask] = griddata(
+                (flat_r[~nan_mask], flat_c[~nan_mask]),
+                dir_y_flat[~nan_mask],
+                (flat_r[nan_mask], flat_c[nan_mask]), method="nearest")
+        dir_x = dir_x_flat.reshape(rows, cols)
+        dir_y = dir_y_flat.reshape(rows, cols)
+        # Renormalize after fill
+        mag = np.sqrt(dir_x * dir_x + dir_y * dir_y)
+        dir_x = np.where(mag > min_mag, dir_x / mag, 0.0)
+        dir_y = np.where(mag > min_mag, dir_y / mag, 0.0)
+
+    print(f"    Vector field: dx_range=[{dir_x.min():.2f},{dir_x.max():.2f}], "
+          f"dy_range=[{dir_y.min():.2f},{dir_y.max():.2f}]")
+    return dir_x, dir_y
+
+
+def _fill_nan_nearest(data):
+    """Fill NaN values with the nearest non-NaN neighbor."""
+    from scipy.interpolate import griddata
+
+    rows, cols = data.shape
+    rr, cc = np.meshgrid(np.arange(rows), np.arange(cols), indexing="ij")
+    valid = ~np.isnan(data)
+
+    if np.sum(valid) == 0:
+        return np.zeros_like(data)
+
+    filled = griddata(
+        (rr[valid], cc[valid]), data[valid],
+        (rr, cc), method="nearest"
     )
-    wx_f = world_x[mask_pgm]
-    wy_f = world_y[mask_pgm]
-    cog_f = cog[mask_pgm]
+    return filled
 
-    print(f"  Points within PGM world bounds: {len(wx_f)} / {len(world_x)}")
 
-    # Filter valid COG
-    valid_cog_mask = (cog_f >= 0) & (cog_f <= 360) & ~np.isnan(cog_f)
-    valid_wx = wx_f[valid_cog_mask]
-    valid_wy = wy_f[valid_cog_mask]
-    valid_cog = cog_f[valid_cog_mask]
+def trajectory_kde(points_wx, points_wy, traj_weights,
+                   wx_grid, wy_grid, bw_m=2.0):
+    """
+    分向轨迹密度估计 (论文公式1-2).
 
-    if len(valid_cog) == 0:
-        print("  [ERROR] No points with valid COG found!", file=sys.stderr)
-        return np.array([]), np.array([]), np.array([]), np.array([]), 0.0
+    东行轨迹 → f_down (顺流密度)
+    西行轨迹 → f_up   (逆流密度)
 
-    # Compute dominant COG direction using histogram
-    hist, edges = np.histogram(valid_cog, bins=72, range=(0, 360))
-    dominant_angle = edges[np.argmax(hist)] + 2.5  # bin center
-    print(f"  Dominant COG direction: {dominant_angle:.1f}°")
+    Phi-bar(p) = (f_down - f_up) / (f_down + f_up + epsilon)
 
-    # Downstream: COG within +/- 90° of dominant angle
-    diff = np.abs((valid_cog - dominant_angle + 180) % 360 - 180)
-    downstream_mask = diff < 90
+    用较小带宽(2m)减少不同方向信号的空间重叠，
+    直接用原始密度差计算势场，不做log/归一化压缩。
+    """
+    n_points = len(points_wx)
+    if n_points == 0:
+        return (np.zeros_like(wx_grid), np.zeros_like(wx_grid),
+                np.zeros_like(wx_grid))
 
-    wx_down = valid_wx[downstream_mask]
-    wy_down = valid_wy[downstream_mask]
-    wx_up = valid_wx[~downstream_mask]
-    wy_up = valid_wy[~downstream_mask]
+    down_mask = traj_weights > 0.5
+    up_mask = traj_weights < -0.5
+    n_down = np.sum(down_mask)
+    n_up = np.sum(up_mask)
+    print(f"    顺流(东行) {n_down} pts, 逆流(西行) {n_up} pts")
+    print(f"    带宽 h={bw_m:.1f}m")
 
-    print(f"  Downstream (T_down): {len(wx_down)} points (COG ~{dominant_angle:.0f}° ± 90°)")
-    print(f"  Upstream   (T_up):   {len(wx_up)} points (COG ~{(dominant_angle+180)%360:.0f}° ± 90°)")
+    rows, cols = wx_grid.shape
+    n_cells = rows * cols
+    h2 = 2.0 * bw_m * bw_m
 
-    return wx_down, wy_down, wx_up, wy_up, dominant_angle
+    f_down = np.zeros((rows, cols), dtype=np.float64)
+    f_up = np.zeros((rows, cols), dtype=np.float64)
+
+    grid_x_flat = wx_grid.ravel()
+    grid_y_flat = wy_grid.ravel()
+
+    BLOCK_SIZE = max(1, min(30000, n_cells))
+    for start in range(0, n_cells, BLOCK_SIZE):
+        end = min(start + BLOCK_SIZE, n_cells)
+        gx = grid_x_flat[start:end]
+        gy = grid_y_flat[start:end]
+        dx = gx[:, np.newaxis] - points_wx[np.newaxis, :]
+        dy = gy[:, np.newaxis] - points_wy[np.newaxis, :]
+        dist_sq = dx * dx + dy * dy
+
+        f_down.ravel()[start:end] = np.sum(
+            np.exp(-dist_sq[:, down_mask] / h2), axis=1)
+        f_up.ravel()[start:end] = np.sum(
+            np.exp(-dist_sq[:, up_mask] / h2), axis=1)
+
+    print(f"    f_down: [{f_down.min():.2f}, {f_down.max():.2f}]")
+    print(f"    f_up:   [{f_up.min():.2f}, {f_up.max():.2f}]")
+
+    # Phi-bar (论文公式2，直接用原始密度)
+    phibar = (f_down - f_up) / (f_down + f_up + EPSILON)
+    # 对比度拉伸: 小值等比放大，极值不变
+    # sign(x) * |x|^γ, γ<1  → 中间值向±1拉近
+    gamma = 0.6
+    phibar = np.sign(phibar) * np.power(np.abs(phibar), gamma)
+    phibar = np.clip(phibar, -1.0, 1.0)
+
+    return phibar, f_down, f_up
 
 
 def build_grid():
@@ -238,69 +432,6 @@ def build_grid():
     return world_x_grid, world_y_grid
 
 
-def gaussian_kernel_sum(points_wx, points_wy, wx_grid, wy_grid, bw_m):
-    """
-    Compute summed Gaussian kernel density on the grid.
-
-    f(p) = sum_i exp(-||p - p_i||^2 / (2 * h^2))
-
-    Uses a vectorized block-wise computation to handle large point sets.
-
-    Args:
-      points_wx, points_wy: (N,) trajectory point world coordinates (meters)
-      wx_grid, wy_grid: (ROWS, COLS) meshgrid of world coordinates
-      bw_m: kernel bandwidth in meters
-
-    Returns:
-      density: (ROWS, COLS) density array
-    """
-    n_points = len(points_wx)
-    if n_points == 0:
-        return np.zeros_like(wx_grid)
-
-    rows, cols = wx_grid.shape
-    n_cells = rows * cols
-
-    h2 = 2.0 * bw_m * bw_m  # 2 * h^2 (all in meters, no conversion needed!)
-
-    density = np.zeros((rows, cols), dtype=np.float64)
-    grid_x_flat = wx_grid.ravel()
-    grid_y_flat = wy_grid.ravel()
-
-    BLOCK_SIZE = 50000  # number of grid cells per block
-    for start in range(0, n_cells, BLOCK_SIZE):
-        end = min(start + BLOCK_SIZE, n_cells)
-        gx = grid_x_flat[start:end]
-        gy = grid_y_flat[start:end]
-
-        # (BLOCK, N) squared distances in meters
-        dx = gx[:, np.newaxis] - points_wx[np.newaxis, :]
-        dy = gy[:, np.newaxis] - points_wy[np.newaxis, :]
-        dist_sq = dx * dx + dy * dy
-
-        # exp(-dist^2 / (2*h^2))
-        block_density = np.sum(np.exp(-dist_sq / h2), axis=1)
-        density.ravel()[start:end] = block_density
-
-    return density
-
-
-def compute_phibar(f_down, f_up, epsilon=EPSILON):
-    """
-    Compute normalized navigation potential field.
-
-    Phi-bar(p) = (f_down - f_up) / (f_down + f_up + epsilon)
-
-    Range: [-1, 1]
-    - +1: pure downstream channel
-    - -1: pure upstream channel
-    -  0: mixed water / no historical traffic
-    """
-    denominator = f_down + f_up + epsilon
-    phibar = (f_down - f_up) / denominator
-    return np.clip(phibar, -1.0, 1.0)
-
-
 def compute_gradient(phibar, resolution_m):
     """
     Compute spatial gradient of phibar using central differences.
@@ -320,16 +451,20 @@ def compute_gradient(phibar, resolution_m):
 def save_csv(data, path):
     """Save 2D array as CSV.
 
-    IMPORTANT: The C++ loadCSVToLayer applies transpose + rowwise.reverse() +
-    colwise.reverse() to the CSV data. This transformation expects the CSV to
-    be in "image" convention (row 0 = top/north, col 0 = left/west). We flip
-    the Y-axis (rows) before saving so the data maps correctly to ROS world
-    coordinates after the C++ transformations.
+    The C++ loadCSVToLayer applies:
+      mat = raw.T; mat = mat.rowwise().reverse(); mat = mat.colwise().reverse()
+    This gives: GridMap(i,j) = csv[77-j][151-i]
+
+    We match the original waterway_map CSV convention:
+      CSV row 0 = north (high Y), col 0 = west (low X)  [image convention]
+
+    Our data is in world convention: row 0 = south (low Y), col 0 = west (low X).
+    So we need np.flipud to convert world → image convention (flip Y only).
+    The X-axis ends up reversed in GridMap, matching the existing system behavior.
     """
-    # Flip rows: CSV row 0 will be highest Y (north), matching image convention
     data_flipped = np.flipud(data)
     np.savetxt(path, data_flipped, delimiter=",", fmt="%.6f")
-    print(f"  Saved {data.shape[0]}x{data.shape[1]} grid to {path} (Y-flipped)")
+    print(f"  Saved {data.shape[0]}x{data.shape[1]} grid to {path}")
 
 
 def main():
@@ -345,6 +480,10 @@ def main():
         "--bandwidth", type=float, default=BANDWIDTH_M, help="KDE bandwidth in meters"
     )
     parser.add_argument(
+        "--local-radius", type=float, default=LOCAL_DIR_RADIUS_M,
+        help="Local direction field search radius in meters"
+    )
+    parser.add_argument(
         "--no-gradients",
         action="store_true",
         default=False,
@@ -358,77 +497,100 @@ def main():
     # Step 1: Read AIS data
     # ============================================================
     print("=" * 60)
-    print("Step 1/5: Reading AIS trajectory data...")
+    print("Step 1/6: Reading AIS trajectory data...")
     print("=" * 60)
-    lon, lat, cog = read_ais_data(AIS_DIRS)
-    print(f"  Total trajectory points read: {len(lon)}")
+    lon, lat, cog, traj_weights = read_ais_data(AIS_DIRS)
+
+    # Safety: trim all arrays to same length
+    min_len = min(len(lon), len(lat), len(cog), len(traj_weights))
+    lon = lon[:min_len]; lat = lat[:min_len]; cog = cog[:min_len]; traj_weights = traj_weights[:min_len]
 
     # Convert lat/lon to world coordinates (meters)
     print("  Converting to world coordinates...")
     world_x, world_y = latlon_to_world(lon, lat)
-    print(f"  World X range: [{world_x.min():.1f}, {world_x.max():.1f}] m")
-    print(f"  World Y range: [{world_y.min():.1f}, {world_y.max():.1f}] m")
 
-    # ============================================================
-    # Step 2: Filter and classify by COG direction
-    # ============================================================
-    print("\n" + "=" * 60)
-    print("Step 2/5: Classifying trajectory points by COG direction...")
-    print("=" * 60)
-    result = filter_and_classify(world_x, world_y, cog)
-    wx_down, wy_down, wx_up, wy_up, dominant_angle = result
+    # Filter to PGM bounds (no COG filter needed with trajectory direction)
+    mask_pgm = (
+        (world_x >= WORLD_X_MIN) & (world_x <= WORLD_X_MAX)
+        & (world_y >= WORLD_Y_MIN) & (world_y <= WORLD_Y_MAX)
+    )
+    # Exclude neutral trajectories (weight=0)
+    mask_dir = (traj_weights > 0.5) | (traj_weights < -0.5)
+    mask_all = mask_pgm & mask_dir
 
-    if len(wx_down) == 0 and len(wx_up) == 0:
-        print("[ERROR] No points after classification!", file=sys.stderr)
+    wx = world_x[mask_all]
+    wy = world_y[mask_all]
+    traj_w = traj_weights[mask_all]
+    cog_valid = cog[mask_all]
+
+    n_east = np.sum(traj_w > 0.5)
+    n_west = np.sum(traj_w < -0.5)
+    print(f"  Points within PGM bounds: {len(wx)} (eastbound={n_east}, westbound={n_west})")
+    if len(wx) == 0:
+        print("[ERROR] No valid AIS points!", file=sys.stderr)
         sys.exit(1)
 
     # ============================================================
-    # Step 3: Build evaluation grid
+    # Step 2: Build evaluation grid
     # ============================================================
     print("\n" + "=" * 60)
-    print("Step 3/5: Building evaluation grid in world coordinates...")
+    print("Step 2/6: Building evaluation grid...")
     print("=" * 60)
     wx_grid, wy_grid = build_grid()
     print(f"  Grid: {GRID_ROWS} rows x {GRID_COLS} cols")
     print(f"  Resolution: {RESOLUTION_M} m/cell")
-    print(f"  Physical size: {GRID_COLS * RESOLUTION_M:.0f}m x {GRID_ROWS * RESOLUTION_M:.0f}m")
-    print(f"  PGM occupancy grid extent: [{WORLD_X_MIN}, {WORLD_X_MAX}] x [{WORLD_Y_MIN}, {WORLD_Y_MAX}] m")
+    print(f"  Physical size: {GRID_COLS * RESOLUTION_M:.0f}m x "
+          f"{GRID_ROWS * RESOLUTION_M:.0f}m")
 
     # ============================================================
-    # Step 4: Compute KDE
-    # ============================================================
-    print("\n" + "=" * 60)
-    print(f"Step 4/5: Computing Gaussian KDE (bandwidth={args.bandwidth}m)...")
-    print("=" * 60)
-
-    print(f"  Computing f_down from {len(wx_down)} points...")
-    f_down = gaussian_kernel_sum(wx_down, wy_down, wx_grid, wy_grid, args.bandwidth)
-    print(f"    f_down range: [{f_down.min():.2f}, {f_down.max():.2f}]")
-
-    print(f"  Computing f_up from {len(wx_up)} points...")
-    f_up = gaussian_kernel_sum(wx_up, wy_up, wx_grid, wy_grid, args.bandwidth)
-    print(f"    f_up range: [{f_up.min():.2f}, {f_up.max():.2f}]")
-
-    # ============================================================
-    # Step 5: Compute Phi-bar and save
+    # Step 3: Compute local direction field (for C++ cost function)
     # ============================================================
     print("\n" + "=" * 60)
-    print("Step 5/5: Computing Phi-bar and saving...")
+    print(f"Step 3/6: Computing local direction field "
+          f"(radius={args.local_radius}m)...")
+    print("=" * 60)
+    theta_local = compute_local_direction_field(wx, wy, cog_valid,
+                                                 args.local_radius)
+
+    # ============================================================
+    # Step 4: Trajectory-direction KDE
+    # ============================================================
+    print("\n" + "=" * 60)
+    print(f"Step 4/6: Computing trajectory-direction KDE "
+          f"(bandwidth={args.bandwidth}m)...")
     print("=" * 60)
 
-    phibar = compute_phibar(f_down, f_up)
+    phibar, f_down, f_up = trajectory_kde(
+        wx, wy, traj_w,
+        wx_grid, wy_grid, args.bandwidth
+    )
+
+    # ============================================================
+    # Step 5: Analyze Phi-bar
+    # ============================================================
+    print("\n" + "=" * 60)
+    print("Step 5/6: Analyzing Phi-bar...")
+    print("=" * 60)
     print(f"  Phi-bar range: [{phibar.min():.4f}, {phibar.max():.4f}]")
 
     # Count cells by type
+    total_density = f_down + f_up
     n_down = np.sum(phibar > 0.1)
     n_up = np.sum(phibar < -0.1)
-    n_mixed = np.sum((phibar >= -0.1) & (phibar <= 0.1) & ((f_down + f_up) > 0.01))
-    n_free = np.sum((phibar >= -0.1) & (phibar <= 0.1) & ((f_down + f_up) <= 0.01))
+    n_mixed = np.sum((np.abs(phibar) <= 0.1) & (total_density > 0.01))
+    n_free = np.sum((np.abs(phibar) <= 0.1) & (total_density <= 0.01))
     print(f"  Cell breakdown:")
-    print(f"    Downstream cells (Phi > +0.1): {n_down}")
-    print(f"    Upstream cells   (Phi < -0.1): {n_up}")
-    print(f"    Mixed cells      (|Phi| <= 0.1, traffic): {n_mixed}")
-    print(f"    Free water       (|Phi| <= 0.1, no traffic): {n_free}")
+    print(f"    Positive (Phi > +0.1): {n_down}")
+    print(f"    Negative (Phi < -0.1): {n_up}")
+    print(f"    Mixed    (|Phi| <= 0.1, traffic): {n_mixed}")
+    print(f"    Free water (|Phi| <= 0.1, no traffic): {n_free}")
+
+    # ============================================================
+    # Step 6: Save outputs
+    # ============================================================
+    print("\n" + "=" * 60)
+    print("Step 6/6: Saving outputs...")
+    print("=" * 60)
 
     # Save Phi-bar
     phibar_path = os.path.join(args.output_dir, "navigation_potential_field.csv")
@@ -441,6 +603,17 @@ def main():
         gy_path = os.path.join(args.output_dir, "phibar_grad_y.csv")
         save_csv(gx, gx_path)
         save_csv(gy, gy_path)
+
+    # Save local direction field (for debugging)
+    dir_path = os.path.join(args.output_dir, "local_direction.csv")
+    save_csv(np.nan_to_num(theta_local, nan=0.0), dir_path)
+
+    # Compute and save KDE-weighted vector field d(p) ∈ ℝ²
+    print("\n  Computing KDE-weighted direction vector field...")
+    dir_x, dir_y = compute_vector_field(wx, wy, cog_valid,
+                                        wx_grid, wy_grid, bw_m=2.0)
+    save_csv(dir_x, os.path.join(args.output_dir, "dir_x.csv"))
+    save_csv(dir_y, os.path.join(args.output_dir, "dir_y.csv"))
 
     print("\n" + "=" * 60)
     print("Done! Navigation potential field built successfully.")

@@ -1,0 +1,17 @@
+gas_stations:
+  - id: 0
+    name: "Gas_A"
+    x: 1500.0
+    y: 500.0
+  - id: 1
+    name: "Gas_B"
+    x: 3500.0
+    y: 1200.0
+  - id: 2
+    name: "Gas_C"
+    x: 5500.0
+    y: 1800.0
+  - id: 3
+    name: "Gas_D"
+    x: 7200.0
+    y: 2400.0

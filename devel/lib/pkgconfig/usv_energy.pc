@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/devel
+
+Name: usv_energy
+Description: Description of usv_energy
+Version: 0.0.1
+Cflags: -I/root/demon3.16/src/usv_energy/include
+Libs: -L${prefix}/lib -lusv_energy
+Requires: roscpp usv_path_planning

@@ -1,0 +1,8 @@
+prefix=/root/demon3.16/devel
+
+Name: usv_roadmap
+Description: Description of usv_roadmap
+Version: 0.0.1
+Cflags: -I/root/demon3.16/src/usv_roadmap/include
+Libs: -L${prefix}/lib -lusv_roadmap
+Requires: roscpp usv_common usv_heterogeneous_graph
