@@ -1,34 +1,10 @@
-# 船舶 — binary_map_scaled.png 像素坐标
+# 8艘船 — 分布在不同港口
 ships:
-  - id: 0
-    name: "Ship_0"
-    max_payload: 2000.0
-    max_energy: 500.0
-    max_speed: 8.0
-    start_x: 500
-    start_y: 200
-    energy_per_km: 2.5
-  - id: 1
-    name: "Ship_1"
-    max_payload: 1500.0
-    max_energy: 400.0
-    max_speed: 7.5
-    start_x: 3700
-    start_y: 1050
-    energy_per_km: 2.2
-  - id: 2
-    name: "Ship_2"
-    max_payload: 2500.0
-    max_energy: 600.0
-    max_speed: 7.0
-    start_x: 3800
-    start_y: 1100
-    energy_per_km: 3.0
-  - id: 3
-    name: "Ship_3"
-    max_payload: 1800.0
-    max_energy: 450.0
-    max_speed: 8.5
-    start_x: 2000
-    start_y: 500
-    energy_per_km: 2.8
+  - id: 0;  name: "Ship_A"; max_payload: 2000; max_energy: 500; max_speed: 8.0;  start_x: 800;  start_y: 1990; energy_per_km: 2.5
+  - id: 1;  name: "Ship_B"; max_payload: 1500; max_energy: 400; max_speed: 7.5;  start_x: 3000; start_y: 2670; energy_per_km: 2.2
+  - id: 2;  name: "Ship_C"; max_payload: 2500; max_energy: 600; max_speed: 7.0;  start_x: 7600; start_y: 1290; energy_per_km: 3.0
+  - id: 3;  name: "Ship_D"; max_payload: 1800; max_energy: 450; max_speed: 8.5;  start_x: 2500; start_y: 2580; energy_per_km: 2.8
+  - id: 4;  name: "Ship_E"; max_payload: 2200; max_energy: 550; max_speed: 7.8;  start_x: 4500; start_y: 2120; energy_per_km: 2.6
+  - id: 5;  name: "Ship_F"; max_payload: 1600; max_energy: 380; max_speed: 8.2;  start_x: 6000; start_y: 1980; energy_per_km: 2.4
+  - id: 6;  name: "Ship_G"; max_payload: 2400; max_energy: 580; max_speed: 7.2;  start_x: 6800; start_y: 1990; energy_per_km: 2.9
+  - id: 7;  name: "Ship_H"; max_payload: 1700; max_energy: 420; max_speed: 8.0;  start_x: 4000; start_y: 2740; energy_per_km: 2.5

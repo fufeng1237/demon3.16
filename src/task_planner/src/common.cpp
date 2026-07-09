@@ -108,3 +108,28 @@ std::vector<GasStation> parseGasStationFile(const std::string& filepath) {
     }
     return stations;
 }
+
+std::vector<TransportTask> parseTaskFile(const std::string& filepath) {
+    std::vector<TransportTask> tasks;
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Warning: Cannot open Task file: " << filepath << std::endl;
+        return tasks;
+    }
+    std::string line;
+    std::regex task_regex(R"(Task\s+(\d+):\s*pickup\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*delivery\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\))");
+    std::smatch match;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        if (std::regex_search(line, match, task_regex)) {
+            TransportTask t;
+            t.id = std::stoi(match[1].str());
+            t.pickup_x = std::stoi(match[2].str());
+            t.pickup_y = std::stoi(match[3].str());
+            t.delivery_x = std::stoi(match[4].str());
+            t.delivery_y = std::stoi(match[5].str());
+            tasks.push_back(t);
+        }
+    }
+    return tasks;
+}

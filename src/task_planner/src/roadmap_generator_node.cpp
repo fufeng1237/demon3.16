@@ -411,6 +411,7 @@ int main(int argc, char** argv) {
     std::string usvs_file = "/root/demon3.16/src/task_planner/cpp_standalone/usvs.txt";
     std::string gas_file = "/root/demon3.16/src/task_planner/cpp_standalone/gas_stations.txt";
     std::string output_file = "/root/demon3.16/src/task_planner/output/road_network_cpp.json";
+    std::string tasks_file = "";
     double scale_factor = 1.0;
 
     for (int i = 1; i < argc; i++) {
@@ -419,6 +420,7 @@ int main(int argc, char** argv) {
         else if (arg == "--ports" && i+1 < argc) ports_file = argv[++i];
         else if (arg == "--usvs" && i+1 < argc) usvs_file = argv[++i];
         else if (arg == "--gas" && i+1 < argc) gas_file = argv[++i];
+        else if (arg == "--tasks" && i+1 < argc) tasks_file = argv[++i];
         else if (arg == "--output" && i+1 < argc) output_file = argv[++i];
         else if (arg == "--scale" && i+1 < argc) scale_factor = std::stod(argv[++i]);
     }
@@ -429,9 +431,22 @@ int main(int argc, char** argv) {
     auto ports = parsePortFile(ports_file);
     auto usvs = parseUSVFile(usvs_file);
     auto gas_stations = parseGasStationFile(gas_file);
-    printf("Loaded: %zu ports, %zu USVs, %zu gas stations\n", ports.size(), usvs.size(), gas_stations.size());
+    auto transport_tasks = parseTaskFile(tasks_file);
+    printf("Loaded: %zu ports, %zu USVs, %zu gas stations, %zu tasks\n",
+           ports.size(), usvs.size(), gas_stations.size(), transport_tasks.size());
 
     Graph graph = generateRoadmapForAllocation(map_file, ports, usvs, scale_factor);
+
+    // Inject task pickup/delivery points as anchor nodes
+    for (const auto& t : transport_tasks) {
+        int pu_id = graph.getNextNodeId();
+        graph.addNode(pu_id, t.pickup_x, t.pickup_y, "port");
+        connectToNearestPythonStyle(graph, pu_id, 1, scale_factor);
+        int de_id = graph.getNextNodeId();
+        graph.addNode(de_id, t.delivery_x, t.delivery_y, "port");
+        connectToNearestPythonStyle(graph, de_id, 1, scale_factor);
+        printf("Task %d: pickup=%d delivery=%d\n", t.id, pu_id, de_id);
+    }
     if (!gas_stations.empty()) {
         connectGasStationToNearestNode(graph, gas_stations, 2);
     }

@@ -26,6 +26,15 @@ struct Port {
     int y;
 };
 
+// 运输任务结构
+struct TransportTask {
+    int id;
+    int pickup_x;
+    int pickup_y;
+    int delivery_x;
+    int delivery_y;
+};
+
 // 加油站结构
 struct GasStation {
     int id;
@@ -39,5 +48,6 @@ struct GasStation {
 std::vector<USV> parseUSVFile(const std::string& filepath);
 std::unordered_map<int, Port> parsePortFile(const std::string& filepath);
 std::vector<GasStation> parseGasStationFile(const std::string& filepath);
+std::vector<TransportTask> parseTaskFile(const std::string& filepath);
 
 #endif // USV_ROADMAP_COMMON_H

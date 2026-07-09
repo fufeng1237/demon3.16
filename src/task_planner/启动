@@ -1,0 +1,161 @@
+#!/bin/bash
+cd /root/demon3.16
+PY=/usr/bin/python3
+$PY -m pip install numpy matplotlib Pillow pyyaml -q 2>/dev/null
+
+echo "============================================"
+echo "  1/3 生成路网"
+echo "============================================"
+./src/task_planner/roadmap_generator \
+    --map data/maps/binary_map_scaled.png \
+    --usvs src/task_planner/config/usvs.txt \
+    --tasks src/task_planner/config/tasks.txt \
+    --gas src/task_planner/config/gas_stations.txt \
+    --output src/task_planner/output/road_network.json
+
+echo ""
+echo "============================================"
+echo "  2/3 路网图 + 任务分配图 + 仿真到全部完成"
+echo "============================================"
+$PY src/task_planner/scripts/full_comparison.py 2>&1 | grep -E "Saved:|Final:|makespan|完成|Simulating" | head -10
+
+echo ""
+echo "============================================"
+echo "  3/3 算法对比 (8船×40任务, 5种子)"
+echo "============================================"
+$PY -c "
+import sys,os,re,time,numpy as np
+from collections import defaultdict
+sys.path.insert(0,'src/task_planner/scripts')
+from road_network import load_road_network
+from scheduler import Scheduler
+from real_time_scheduler import RealTimeScheduler
+from alns_scheduler import ALNSScheduler
+from graph_evaluator import GraphEvaluator
+
+BASE='src/task_planner'
+rn=load_road_network(f'{BASE}/output/road_network.json',f'{BASE}/config/ports.yaml')
+port_ids=sorted([nid for nid,n in rn.nodes.items() if n.is_port])
+gas_ids=sorted([nid for nid,n in rn.nodes.items() if n.is_gas_station])
+node_names={nid:(n.port_name if n.port_name else '') for nid,n in rn.nodes.items()}
+
+def nn(wx,wy):
+    best,best_d=None,float('inf')
+    for nid,n in rn.nodes.items():
+        d=np.sqrt((n.x-wx)**2+(n.y-wy)**2)
+        if d<best_d: best_d=d; best=nid
+    return best
+
+ship_cfg=[]; task_cfg=[]
+with open(f'{BASE}/config/usvs.txt') as f:
+    for l in f:
+        if l[0]=='#': continue
+        parts=l.replace('USV:','').strip().split(',')
+        if len(parts)>=8: ship_cfg.append((int(parts[0]),f'S{int(parts[0])}',int(parts[4]),float(parts[6]),float(parts[3]),int(parts[1]),int(parts[2])))
+with open(f'{BASE}/config/tasks.txt') as f:
+    for l in f:
+        if l[0]=='#': continue
+        m=re.match(r'Task\s+(\d+):\s*pickup\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\).*delivery\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)',l)
+        if m: task_cfg.append((int(m.group(1)),int(m.group(2)),int(m.group(3)),int(m.group(4)),int(m.group(5))))
+
+n_ships=len(ship_cfg); n_tasks=len(task_cfg)
+u_ships=ship_cfg[:n_ships]; u_tasks=task_cfg[:n_tasks]
+
+def build_scene():
+    sh=RealTimeScheduler(rn,port_ids,gas_ids,node_names)
+    for sid,name,cap,en,sp,px,py in u_ships:
+        sh.add_ship(sid,name,cap,en,sp,nn(px*2,py*2))
+    np.random.seed(42)
+    for tid,ppx,ppy,dpx,dpy in u_tasks:
+        sh.add_task(tid,nn(ppx*2,ppy*2),nn(dpx*2,dpy*2),float(np.random.choice([300,500,800,1000,1500])),int(np.random.choice([1,2,3])),float('inf'))
+    return sh
+
+def simulate(sh,assign):
+    totd=0; maxt=0; loads=[]
+    for sid in assign:
+        st=0.0; cur=sh.ships[sid].current_node; ld=0
+        for tid in assign[sid]:
+            tk=sh.tasks[tid]
+            d1=rn.dist_matrix[cur,tk.pickup_node]; d2=rn.dist_matrix[tk.pickup_node,tk.delivery_node]
+            st+=d1/max(sh.ships[sid].max_speed,1)+300+d2/max(sh.ships[sid].max_speed,1)+180
+            totd+=d1+d2; cur=tk.delivery_node; ld+=tk.payload
+        maxt=max(maxt,st); loads.append(ld)
+    return maxt,totd,np.std(loads)
+
+R={m:{'ms':[],'td':[],'ls':[],'tm':[]} for m in ['Greedy','NearestNeighbor','Plain ALNS','Graph-ALNS']}
+for seed in range(5):
+    np.random.seed(seed*10+42)
+    sh=build_scene()
+    for tid in sh.tasks: sh.tasks[tid].payload=float(np.random.choice([300,500,800,1000,1500]))
+    # Greedy
+    t0=time.perf_counter()
+    for tid in u_tasks:
+        t=sh.tasks[tid[0]]; best_sid,best_d=None,float('inf')
+        for sid,s in sh.ships.items():
+            d=rn.dist_matrix[s.current_node,t.pickup_node]+rn.dist_matrix[t.pickup_node,t.delivery_node]
+            if d<best_d and t.payload<=s.remaining_capacity: best_d=d; best_sid=sid
+        if best_sid: sh.ships[best_sid].task_sequence.append(tid[0])
+    assign={sid:list(s.task_sequence) for sid,s in sh.ships.items()}
+    R['Greedy']['tm'].append(time.perf_counter()-t0)
+    ms,td,ls=simulate(sh,assign); R['Greedy']['ms'].append(ms); R['Greedy']['td'].append(td); R['Greedy']['ls'].append(ls)
+
+    # NearestNeighbor
+    sh2=build_scene(); np.random.seed(seed*10+42)
+    for tid in sh2.tasks: sh2.tasks[tid].payload=float(np.random.choice([300,500,800,1000,1500]))
+    t0=time.perf_counter()
+    unassigned=set(range(n_tasks))
+    for sid in sorted(sh2.ships.keys()):
+        cur=sh2.ships[sid].current_node
+        while unassigned:
+            best_tid,best_d=None,float('inf')
+            for tid in unassigned:
+                t=sh2.tasks[tid]; d=rn.dist_matrix[cur,t.pickup_node]+rn.dist_matrix[t.pickup_node,t.delivery_node]
+                if d<best_d and t.payload<=sh2.ships[sid].remaining_capacity: best_d=d; best_tid=tid
+            if best_tid is None: break
+            sh2.ships[sid].task_sequence.append(best_tid); cur=sh2.tasks[best_tid].delivery_node; unassigned.remove(best_tid)
+    assign2={sid:list(s.task_sequence) for sid,s in sh2.ships.items()}
+    R['NearestNeighbor']['tm'].append(time.perf_counter()-t0)
+    ms2,td2,ls2=simulate(sh2,assign2); R['NearestNeighbor']['ms'].append(ms2); R['NearestNeighbor']['td'].append(td2); R['NearestNeighbor']['ls'].append(ls2)
+
+    # Plain ALNS
+    sh3=build_scene(); np.random.seed(seed*10+42)
+    for tid in sh3.tasks: sh3.tasks[tid].payload=float(np.random.choice([300,500,800,1000,1500]))
+    t0=time.perf_counter()
+    evaluator=GraphEvaluator(rn,node_names); alns=ALNSScheduler(evaluator,sh3.tasks,rn,node_names)
+    alns.K_candidates=len(sh3.ships); routes=alns.build_initial_routes(sh3.ships); routes=alns.optimize(sh3.ships,routes)
+    assign3={}
+    for sid in sh3.ships: tids=[]; [tids.append(rnd.task_id) for rnd in routes.get(sid,[]) if rnd.action=='PICKUP' and rnd.task_id>=0]; assign3[sid]=tids
+    R['Plain ALNS']['tm'].append(time.perf_counter()-t0)
+    ms3,td3,ls3=simulate(sh3,assign3); R['Plain ALNS']['ms'].append(ms3); R['Plain ALNS']['td'].append(td3); R['Plain ALNS']['ls'].append(ls3)
+
+    # Graph-ALNS
+    sh4=build_scene(); np.random.seed(seed*10+42)
+    for tid in sh4.tasks: sh4.tasks[tid].payload=float(np.random.choice([300,500,800,1000,1500]))
+    t0=time.perf_counter()
+    sched=Scheduler(rn,sh4.ships,sh4.tasks,port_ids,gas_ids,node_names); sched.initialize()
+    assign4={}
+    for sid in sh4.ships: tids=[]; [tids.append(rnd.task_id) for rnd in sched.routes.get(sid,[]) if rnd.action=='PICKUP' and rnd.task_id>=0]; assign4[sid]=tids
+    R['Graph-ALNS']['tm'].append(time.perf_counter()-t0)
+    ms4,td4,ls4=simulate(sh4,assign4); R['Graph-ALNS']['ms'].append(ms4); R['Graph-ALNS']['td'].append(td4); R['Graph-ALNS']['ls'].append(ls4)
+
+print(f'\n{\"Method\":<20} {\"Makespan(s)\":>12} {\"Distance(m)\":>12} {\"LoadStd\":>8} {\"Time(s)\":>8}')
+print('-'*62)
+for m in ['Greedy','NearestNeighbor','Plain ALNS','Graph-ALNS']:
+    r=R[m]; ams=np.mean(r['ms']); atd=np.mean(r['td']); als=np.mean(r['ls']); atm=np.mean(r['tm'])
+    print(f'{m:<20} {ams:12.0f} {atd:12.0f} {als:8.0f} {atm:8.3f}')
+bl_ms=np.mean(R['Greedy']['ms']); bl_td=np.mean(R['Greedy']['td']); bl_ls=np.mean(R['Greedy']['ls'])
+ga_ms=np.mean(R['Graph-ALNS']['ms']); ga_td=np.mean(R['Graph-ALNS']['td']); ga_ls=np.mean(R['Graph-ALNS']['ls'])
+print(f'\nGraph-ALNS vs Greedy: makespan {(ga_ms/bl_ms-1)*100:+.0f}%  distance {(ga_td/bl_td-1)*100:+.0f}%  loadstd {(ga_ls/bl_ls-1)*100:+.0f}%')
+print(f'Graph-ALNS vs NearestNeighbor: loadstd {(ga_ls/np.mean(R[\"NearestNeighbor\"][\"ls\"])-1)*100:+.0f}%')
+print(f'Graph-ALNS vs Plain ALNS: makespan {(ga_ms/np.mean(R[\"Plain ALNS\"][\"ms\"])-1)*100:+.0f}%  time {(np.mean(R[\"Graph-ALNS\"][\"tm\"])/np.mean(R[\"Plain ALNS\"][\"tm\"])-1)*100:+.0f}%')
+print(f'\n穷举法: 3船6任务可行(729组合,<10ms), 8船40任务=8^40≈1.3e36组合, 不可行')
+"
+
+echo ""
+echo "============================================"
+echo "  完成!"
+echo "  output/road_network.json"
+echo "  output/road_network_on_map.png"
+echo "  output/allocation_routes.png"
+echo "  output/full_comparison.png"
+echo "============================================"
