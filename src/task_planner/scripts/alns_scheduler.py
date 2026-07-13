@@ -41,14 +41,37 @@ class ALNSScheduler:
         self.rn = road_network
         self.node_names = node_names or {}
 
-        self.max_iter = 300
-        self.T0 = 200.0; self.T_min = 0.1; self.alpha = 0.98
+        # SA 参数 (匹配归一化代价 J≈1.0 的尺度)
+        self.max_iter = 1000
+        self.T0 = 2.0; self.T_min = 0.001; self.alpha = 0.995
+        self.no_improve_limit = 300
         self.K_candidates = 5
 
-        self.destroy_weights = {'random': 1.0, 'worst': 1.0, 'shaw': 1.0, 'energy': 1.0}
+        # 算子权重
+        self.destroy_weights = {'random': 1.0, 'worst': 1.0, 'shaw': 1.0,
+                               'energy': 1.0, 'bottleneck': 1.5}
         self.repair_weights = {'greedy': 1.0, 'regret2': 1.0}
         self.destroy_scores = defaultdict(float); self.repair_scores = defaultdict(float)
         self.destroy_count = defaultdict(int); self.repair_count = defaultdict(int)
+
+        # ── 多目标代价函数权重 ──
+        self.w_distance  = 0.15   # D: 总航行距离
+        self.w_makespan  = 0.70   # M: Makespan (第一目标)
+        self.w_energy    = 0.08   # E: 总能耗 (载重敏感)
+        self.w_balance   = 0.05   # B: 完成时间方差
+        self.w_stability = 0.02   # S: Route 稳定性
+
+        # 负载均衡偏置: score = delta + λ × current_ship_time
+        self.balance_lambda = 0.50
+
+        # 能耗参数
+        self.load_penalty_factor = 0.5     # 满载时能耗 +50%
+        self.loading_time   = 300          # 装载时间 (s)
+        self.unloading_time = 180          # 卸载时间 (s)
+
+        # ── 归一化基准 & 稳定性状态 ──
+        self._norm_base = None       # 固定归一化基准 (首次求解时设定)
+        self._prev_routes = None     # 上一轮 Route (Rolling Horizon 稳定性用)
 
     # ================================================================
     # 公开接口
@@ -56,8 +79,8 @@ class ALNSScheduler:
 
     def build_initial_routes(self, ships: Dict) -> Dict[int, List[RouteNode]]:
         """
-        Graph-guided Cheapest Insertion 构建初始 Route。
-        平衡策略: 贪心分配 + 每轮强制选当前任务最少的可行船。
+        多目标贪心初始解: 每步对所有船比选，score = delta + λ×ship_time。
+        负载均衡偏置确保任务不会集中到同一艘船，从源头上控制 makespan。
         """
         ships_copy = {sid: deepcopy(s) for sid, s in ships.items()}
         routes = {sid: [] for sid in ships_copy}
@@ -70,43 +93,52 @@ class ALNSScheduler:
             return -t.payload * u
         task_list = sorted(task_list, key=sort_key)
 
-        # Round-robin across ships for balance: sort ships by load each round
-        ship_order = sorted(ships_copy.keys())
-        ship_idx = 0
-
         for tid in task_list:
             task = self.tasks[tid]
-            # Try each ship in round-robin order
-            best_sid = None; best_pu = -1; best_de = -1; best_delta = float('inf')
-            for _ in range(len(ship_order)):
-                sid = ship_order[ship_idx % len(ship_order)]
-                ship_idx += 1
+            best_sid = None; best_pu = -1; best_de = -1; best_score = float('inf')
+
+            for sid in ships_copy:
                 ship = ships_copy[sid]
                 c = self.evaluator.evaluate(ship, task)
-                if not c.is_feasible(): continue
+                if not c.is_feasible():
+                    continue
                 pu, de, delta = self._best_insert_pair(ship, routes[sid], task)
-                if delta < best_delta:
-                    best_delta = delta; best_sid = sid; best_pu = pu; best_de = de
+                if delta == float('inf'):
+                    continue
+                # score = 插入代价 + 负载均衡偏置 × 当前船完工时间
+                ship_time = self._calc_single_ship_time(ship, routes[sid])
+                score = delta + self.balance_lambda * ship_time
+                if score < best_score:
+                    best_score = score; best_sid = sid
+                    best_pu = pu; best_de = de
 
             if best_sid is not None:
                 r = routes[best_sid]
                 r.insert(best_pu, RouteNode(task.pickup_node, "PICKUP", tid))
                 r.insert(best_de + 1, RouteNode(task.delivery_node, "DELIVERY", tid))
                 self.tasks[tid].assigned_ship = best_sid
-            # 更新船顺序: 当前最空闲的排前面
-            ship_order.sort(key=lambda sid: (len(routes[sid]), np.random.random()))
 
         return routes
 
     def optimize(self, ships: Dict, current_routes: Dict[int, List[RouteNode]] = None,
                   frozen_count: int = 0) -> Dict[int, List[RouteNode]]:
-        """ALNS 优化 Route (SA)"""
+        """ALNS 优化 Route (SA) — 层级优化: makespan 优先, 距离/能耗为辅"""
         if current_routes is None:
             current_routes = {sid: list(self._get_route(ships[sid]))
                               for sid in ships}
 
+        # 保存初始解 (用于回退)
+        initial_routes = deepcopy(current_routes)
+        initial_raw = self._fleet_cost_raw(initial_routes, ships)
+        initial_makespan = initial_raw['M']
+
+        # 固定归一化基准: 基于本次优化的初始解
+        self._norm_base = {k: max(v, 1) for k, v in initial_raw.items()}
+
         current_cost = self._fleet_cost(current_routes, ships)
         best_routes = deepcopy(current_routes); best_cost = current_cost
+        best_raw = self._fleet_cost_raw(current_routes, ships)
+        best_makespan = best_raw['M']
         T = self.T0; it = 0; no_improve = 0
 
         while T > self.T_min and it < self.max_iter:
@@ -122,14 +154,28 @@ class ALNSScheduler:
                 it += 1; T *= self.alpha; continue
 
             new_cost = self._fleet_cost(repaired, ships)
+            new_raw = self._fleet_cost_raw(repaired, ships)
             delta = new_cost - current_cost
+
+            # Makespan guard: 不接受 makespan 严重退化的解 (主目标保护)
+            if new_raw['M'] > best_makespan * 1.03:
+                it += 1; T *= self.alpha; continue
 
             if delta < 0 or random.random() < np.exp(-delta / T):
                 current_routes = repaired; current_cost = new_cost
                 self.destroy_scores[d_op] += 1; self.repair_scores[r_op] += 1
-                if new_cost < best_cost:
+                if new_raw['M'] < best_makespan - 1.0:
+                    # makespan 改善 → 无条件接受为 best
                     best_routes = deepcopy(repaired); best_cost = new_cost
+                    best_raw = new_raw; best_makespan = new_raw['M']
                     self.destroy_scores[d_op] += 3; self.repair_scores[r_op] += 3
+                    no_improve = 0
+                elif (new_raw['M'] <= best_makespan * 1.01
+                      and new_cost < best_cost):
+                    # makespan 基本持平 + J 更优 → 接受
+                    best_routes = deepcopy(repaired); best_cost = new_cost
+                    best_raw = new_raw
+                    self.destroy_scores[d_op] += 2; self.repair_scores[r_op] += 2
                     no_improve = 0
                 else:
                     no_improve += 1
@@ -138,9 +184,20 @@ class ALNSScheduler:
 
             self.destroy_count[d_op] += 1; self.repair_count[r_op] += 1
             if it % 50 == 0: self._update_weights()
-            if no_improve > 100: break
+            if no_improve > self.no_improve_limit: break
             it += 1; T *= self.alpha
 
+        # ── 层级回退: 如果 SA 把 makespan 改差了, 退回初始解 ──
+        final_raw = self._fleet_cost_raw(best_routes, ships)
+        if final_raw['M'] > initial_makespan + 1.0:
+            # makespan 退化了 → 回退到初始解
+            return initial_routes
+        if (final_raw['M'] >= initial_makespan - 1.0
+              and best_raw['M'] >= initial_makespan - 1.0):
+            # makespan 没显著改善 → 比较综合代价, 选更优者
+            initial_cost = self._fleet_cost(initial_routes, ships)
+            if initial_cost <= best_cost:
+                return initial_routes
         return best_routes
 
     def route_to_node_list(self, route: List[RouteNode]) -> List[int]:
@@ -166,23 +223,168 @@ class ALNSScheduler:
         return f"[{' → '.join(parts)}] {total/1000:.1f}km"
 
     # ================================================================
-    # 代价计算
+    # 代价计算 — 多目标: D(距离) + M(Makespan) + E(能耗) + B(均衡) + S(稳定性)
     # ================================================================
 
     def _route_cost(self, ship, route: List[RouteNode]) -> float:
+        """单船距离 (被 _best_insert_pair 用作快速 delta 估算)"""
         total = 0.0; cur = ship.current_node
         for rn in route:
             total += self.rn.dist_matrix[cur, rn.node_id]
             cur = rn.node_id
         return total
 
-    def _fleet_cost(self, routes: Dict, ships: Dict) -> float:
-        total = sum(self._route_cost(ships[sid], seq) for sid, seq in routes.items())
-        # load balance penalty
-        lens = [len(seq) for seq in routes.values()]
-        total += sum(1 for l in lens if l == 0) * 5000
-        if lens: total += np.var(lens) * 300
+    # ── 五项原始指标 ──
+
+    def _calc_single_ship_time(self, ship, route: List[RouteNode]) -> float:
+        """单船完工时间 (s). 空船返回 0."""
+        if not route:
+            return 0.0
+        t = 0.0; cur = ship.current_node
+        for rn in route:
+            d = self.rn.dist_matrix[cur][rn.node_id]
+            t += d / max(ship.max_speed, 1.0)
+            if rn.action == 'PICKUP':
+                t += self.loading_time
+            elif rn.action == 'DELIVERY':
+                t += self.unloading_time
+            cur = rn.node_id
+        return t
+
+    def _calc_distance(self, routes: Dict, ships: Dict) -> float:
+        """D: 总航行距离 (m)"""
+        return sum(self._route_cost(ships[sid], seq) for sid, seq in routes.items())
+
+    def _calc_makespan(self, routes: Dict, ships: Dict) -> float:
+        """M: 最晚完成时间 (s). 空船不计."""
+        max_time = 0.0
+        for sid, seq in routes.items():
+            ship = ships[sid]
+            if not seq:
+                continue
+            t = 0.0; cur = ship.current_node
+            for rn in seq:
+                d = self.rn.dist_matrix[cur][rn.node_id]
+                t += d / max(ship.max_speed, 1.0)
+                if rn.action == 'PICKUP':
+                    t += self.loading_time
+                elif rn.action == 'DELIVERY':
+                    t += self.unloading_time
+                cur = rn.node_id
+            max_time = max(max_time, t)
+        return max_time
+
+    def _calc_energy(self, routes: Dict, ships: Dict) -> float:
+        """E: 总能耗 (kWh), 载重越高单位距离耗能越多"""
+        total = 0.0
+        for sid, seq in routes.items():
+            ship = ships[sid]
+            cur = ship.current_node; load = ship.load
+            for rn in seq:
+                d = self.rn.dist_matrix[cur][rn.node_id]
+                # 能耗 = 距离(km) × 单位能耗 × (1 + α×载重率)
+                ratio = 1.0 + self.load_penalty_factor * load / max(ship.max_payload, 1)
+                total += (d / 1000.0) * ship.energy_per_km * ratio
+                if rn.action == 'PICKUP':
+                    t = self.tasks.get(rn.task_id)
+                    if t: load += t.payload
+                elif rn.action == 'DELIVERY':
+                    t = self.tasks.get(rn.task_id)
+                    if t: load -= t.payload
+                cur = rn.node_id
         return total
+
+    def _calc_balance(self, routes: Dict, ships: Dict) -> float:
+        """B: 各船完成时间的方差 (s²). 越小越均衡."""
+        times = []
+        for sid, seq in routes.items():
+            ship = ships[sid]
+            if not seq:
+                times.append(0.0)
+                continue
+            t = 0.0; cur = ship.current_node
+            for rn in seq:
+                d = self.rn.dist_matrix[cur][rn.node_id]
+                t += d / max(ship.max_speed, 1.0)
+                if rn.action == 'PICKUP':
+                    t += self.loading_time
+                elif rn.action == 'DELIVERY':
+                    t += self.unloading_time
+                cur = rn.node_id
+            times.append(t)
+        if not times:
+            return 0.0
+        return float(np.var(times))
+
+    def _calc_stability(self, routes: Dict, ships: Dict) -> float:
+        """S: Route 变化率 (0~1). 仅在 Rolling Horizon 时非零."""
+        if self._prev_routes is None:
+            return 0.0
+        changes = 0; total = 0
+        for sid, seq in routes.items():
+            prev = self._prev_routes.get(sid, [])
+            new_tids = {rn.task_id for rn in seq if rn.action == 'PICKUP'}
+            old_tids = {rn.task_id for rn in prev if rn.action == 'PICKUP'}
+            total += max(len(new_tids | old_tids), 1)
+            changes += len(new_tids ^ old_tids)  # 换了船或新增/移除
+        if total == 0:
+            return 0.0
+        return changes / total
+
+    # ── 原始指标字典 ──
+
+    def _fleet_cost_raw(self, routes: Dict, ships: Dict) -> Dict[str, float]:
+        """返回五项原始指标 (用于初始化归一化基准)"""
+        return {
+            'D': self._calc_distance(routes, ships),
+            'M': self._calc_makespan(routes, ships),
+            'E': self._calc_energy(routes, ships),
+            'B': self._calc_balance(routes, ships),
+            'S': self._calc_stability(routes, ships),
+        }
+
+    # ── 归一化综合代价 (ALNS 优化目标) ──
+
+    def _fleet_cost(self, routes: Dict, ships: Dict) -> float:
+        """
+        综合代价 J = w1*D_norm + w2*M_norm + w3*E_norm + w4*B_norm + w5*S_norm + idle_penalty
+        归一化基准固定为初始解的指标值, 保证 SA 过程中 cost 可比.
+        """
+        raw = self._fleet_cost_raw(routes, ships)
+        base = self._norm_base if self._norm_base else {k: max(v, 1) for k, v in raw.items()}
+
+        D_norm = raw['D'] / base['D']
+        M_norm = raw['M'] / max(base['M'], 1e-6)
+        E_norm = raw['E'] / max(base['E'], 1e-6)
+        B_norm = raw['B'] / max(base['B'], 1e-6)
+        S_norm = raw['S']  # 已是比例
+
+        J = (self.w_distance  * D_norm +
+             self.w_makespan  * M_norm +
+             self.w_energy    * E_norm +
+             self.w_balance   * B_norm +
+             self.w_stability * S_norm)
+
+        # 空闲船重罚: 每艘 +0.5 (J 基准≈1.0, 防止 ALNS 把任务集中到少数船)
+        idle_count = sum(1 for seq in routes.values() if len(seq) == 0)
+        J += idle_count * 0.5
+
+        return J
+
+    def get_cost_breakdown(self, routes: Dict, ships: Dict) -> Dict:
+        """调试用: 返回各项指标的原始值和归一化值"""
+        raw = self._fleet_cost_raw(routes, ships)
+        base = self._norm_base if self._norm_base else {k: max(v, 1) for k, v in raw.items()}
+        idle_count = sum(1 for seq in routes.values() if len(seq) == 0)
+        return {
+            'D_raw': raw['D'], 'D_norm': raw['D'] / base['D'],
+            'M_raw': raw['M'], 'M_norm': raw['M'] / max(base['M'], 1e-6),
+            'E_raw': raw['E'], 'E_norm': raw['E'] / max(base['E'], 1e-6),
+            'B_raw': raw['B'], 'B_norm': raw['B'] / max(base['B'], 1e-6),
+            'S_raw': raw['S'],
+            'idle_count': idle_count, 'idle_penalty': idle_count * 0.5,
+            'J_total': self._fleet_cost(routes, ships),
+        }
 
     # ================================================================
     # 插入逻辑 (PICKUP + DELIVERY 成对)
@@ -191,28 +393,103 @@ class ALNSScheduler:
     def _best_insert_pair(self, ship, route: List[RouteNode], task
                            ) -> Tuple[int, int, float]:
         """
-        找插入 PICKUP+DELIVERY 对的最佳位置。
-        返回 (pickup_pos, delivery_pos, delta_cost)。
+        O(n²) 多目标插入: 同时考虑距离、完工时间和能耗。
+        返回 (pickup_pos, delivery_pos, weighted_delta)。
+
+        delta = w_d × Δtravel_time + w_m × Δtotal_time + w_e × Δenergy_time_equiv
+        所有分量统一为"等效时间 (秒)"，使权重直接控制 trade-off。
         """
         best_pu = 0; best_de = 0; best_delta = float('inf')
         n = len(route)
+        pu_node = task.pickup_node
+        de_node = task.delivery_node
+        payload = task.payload
+        capacity = ship.max_payload
+        speed = max(ship.max_speed, 1.0)
+        epk = ship.energy_per_km
+        rn_dist = self.rn.dist_matrix
+
+        # ── 预计算 ──
+        nodes = [ship.current_node] + [rn.node_id for rn in route]
+        edge_d = [rn_dist[nodes[i]][nodes[i+1]] for i in range(n)]
+
+        cum_load = [ship.load]
+        cur_load = ship.load
+        for rnode in route:
+            if rnode.action == 'PICKUP':
+                t = self.tasks.get(rnode.task_id)
+                if t: cur_load += t.payload
+            elif rnode.action == 'DELIVERY':
+                t = self.tasks.get(rnode.task_id)
+                if t: cur_load -= t.payload
+            cum_load.append(cur_load)
 
         for pu_pos in range(n + 1):
-            for de_pos in range(pu_pos, n + 1):
-                # 构造临时序列
-                pu_rn = RouteNode(task.pickup_node, "PICKUP", task.task_id)
-                de_rn = RouteNode(task.delivery_node, "DELIVERY", task.task_id)
-                new_route = list(route)
-                new_route.insert(pu_pos, pu_rn)
-                new_route.insert(de_pos + 1, de_rn)  # +1 因为 pu 已插入
+            prev_pu = nodes[pu_pos]
+            nxt_pu = nodes[pu_pos + 1] if pu_pos < n else None
+            if rn_dist[prev_pu][pu_node] == np.inf:
+                continue
+            if nxt_pu is not None and rn_dist[pu_node][nxt_pu] == np.inf:
+                continue
 
-                # 约束检查
-                if not self._check_single_route(ship, new_route):
+            # ── PICKUP 距离增量 O(1) ──
+            if pu_pos < n:
+                delta_d_pu = (rn_dist[prev_pu][pu_node]
+                              + rn_dist[pu_node][nxt_pu] - edge_d[pu_pos])
+            else:
+                delta_d_pu = rn_dist[prev_pu][pu_node]
+
+            load_after_pu = cum_load[pu_pos] + payload
+            if load_after_pu > capacity:
+                continue
+
+            max_load = load_after_pu
+            for de_pos in range(pu_pos, n + 1):
+                if de_pos > pu_pos:
+                    max_load = max(max_load, cum_load[de_pos] + payload)
+                if max_load > capacity:
+                    break  # 容量超额, 继续右移只会更大
+
+                # ── DELIVERY 距离增量 O(1) ──
+                prev_de = pu_node if de_pos == pu_pos else nodes[de_pos]
+                nxt_de = nodes[de_pos + 1] if de_pos < n else None
+                if rn_dist[prev_de][de_node] == np.inf:
+                    continue
+                if nxt_de is not None and rn_dist[de_node][nxt_de] == np.inf:
                     continue
 
-                delta = self._route_cost(ship, new_route) - self._route_cost(ship, route)
+                if de_pos == pu_pos == n:
+                    delta_d_de = rn_dist[pu_node][de_node]
+                elif de_pos == pu_pos:
+                    delta_d_de = (rn_dist[pu_node][de_node]
+                                  + rn_dist[de_node][nxt_pu]
+                                  - rn_dist[pu_node][nxt_pu])
+                elif de_pos < n:
+                    delta_d_de = (rn_dist[prev_de][de_node]
+                                  + rn_dist[de_node][nxt_de] - edge_d[de_pos])
+                else:
+                    delta_d_de = rn_dist[prev_de][de_node]
+
+                delta_d = delta_d_pu + delta_d_de
+
+                # ── 多目标 delta (统一为"等效时间"秒) ──
+                travel_time = delta_d / speed
+                total_time = travel_time + self.loading_time + self.unloading_time
+
+                avg_load = cum_load[pu_pos] + payload / 2.0
+                load_ratio = 1.0 + self.load_penalty_factor * avg_load / max(capacity, 1)
+                energy_kwh = (delta_d / 1000.0) * epk * load_ratio
+                # 1 kWh → 船可航行 1000/(epk×speed) 秒 → 等效时间
+                energy_time_equiv = energy_kwh * 1000.0 / (epk * speed) if epk > 0 else 0.0
+
+                delta = (self.w_distance  * travel_time +
+                         self.w_makespan  * total_time +
+                         self.w_energy    * energy_time_equiv)
+
                 if delta < best_delta:
-                    best_delta = delta; best_pu = pu_pos; best_de = de_pos
+                    best_delta = delta
+                    best_pu = pu_pos
+                    best_de = de_pos
 
         return best_pu, best_de, best_delta
 
@@ -323,6 +600,30 @@ class ALNSScheduler:
             scored = [(ships[sid].energy_ratio, sid, tid) for sid, tid in removable]
             scored.sort(); n = max(1, int(len(scored) * 0.2))
             chosen = [(s, t) for _, s, t in scored[:n]]
+        elif op == 'bottleneck':
+            # 瞄准 makespan 最大的瓶颈船, 移除其任务
+            ship_times = {}
+            for sid, seq in new_routes.items():
+                if not seq:
+                    ship_times[sid] = 0.0
+                    continue
+                ship = ships[sid]
+                t = 0.0; cur = ship.current_node
+                for rn in seq:
+                    d = self.rn.dist_matrix[cur][rn.node_id]
+                    t += d / max(ship.max_speed, 1.0)
+                    if rn.action == 'PICKUP': t += self.loading_time
+                    elif rn.action == 'DELIVERY': t += self.unloading_time
+                    cur = rn.node_id
+                ship_times[sid] = t
+            bottleneck_sid = max(ship_times, key=ship_times.get)
+            # 只从瓶颈船上移除任务
+            bottleneck_removable = [(s, t) for s, t in removable if s == bottleneck_sid]
+            if bottleneck_removable:
+                n = max(1, int(len(bottleneck_removable) * 0.3))
+                chosen = random.sample(bottleneck_removable, min(n, len(bottleneck_removable)))
+            else:
+                chosen = []
         else:
             chosen = []
 
@@ -342,11 +643,15 @@ class ALNSScheduler:
         if op == 'greedy':
             for tid in removed:
                 task = self.tasks[tid]
-                best_sid = None; best_pu = -1; best_de = -1; best_delta = float('inf')
+                best_sid = None; best_pu = -1; best_de = -1; best_score = float('inf')
                 for sid, seq in new_routes.items():
                     pu, de, delta = self._best_insert_pair(ships[sid], seq, task)
-                    if delta < best_delta:
-                        best_delta = delta; best_sid = sid
+                    if delta == float('inf'):
+                        continue
+                    ship_time = self._calc_single_ship_time(ships[sid], seq)
+                    score = delta + self.balance_lambda * ship_time
+                    if score < best_score:
+                        best_score = score; best_sid = sid
                         best_pu = pu; best_de = de
                 if best_sid is not None:
                     r = new_routes[best_sid]
@@ -363,7 +668,11 @@ class ALNSScheduler:
                     costs = []
                     for sid, seq in new_routes.items():
                         pu, de, delta = self._best_insert_pair(ships[sid], seq, task)
-                        costs.append((delta, sid, pu, de))
+                        if delta == float('inf'):
+                            continue
+                        ship_time = self._calc_single_ship_time(ships[sid], seq)
+                        score = delta + self.balance_lambda * ship_time
+                        costs.append((score, sid, pu, de))
                     costs.sort()
                     if len(costs) >= 2:
                         regret = costs[1][0] - costs[0][0]

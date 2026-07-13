@@ -123,8 +123,9 @@ class Scheduler:
         self.routes: Dict[int, List[RouteNode]] = {}
         self.event_log: List[dict] = []
 
-    def initialize(self):
-        """初始调度: 异构图 + ALNS 生成 Route"""
+    def initialize(self, initial_routes: Dict = None):
+        """初始调度: 异构图 + ALNS 生成 Route。
+        可传入 initial_routes (如贪心算法结果) 替代 cheapest insertion 初始解。"""
         print("=" * 60)
         print("  Initial Scheduling: Graph + ALNS")
         print("=" * 60)
@@ -134,8 +135,12 @@ class Scheduler:
         print(f"  Edges: RR={g.rr_edges.shape[1]} SR={g.sr_edges.shape[1]} "
               f"TR={g.tr_edges.shape[1]} ST={g.st_edges.shape[1]} TT={g.tt_edges.shape[1]}")
 
-        self.routes = self.alns.build_initial_routes(self.ships)
-        self._print_routes("Initial Routes (Cheapest Insertion)")
+        if initial_routes is not None:
+            self.routes = initial_routes
+            print("  Using provided initial routes (e.g. greedy result)")
+        else:
+            self.routes = self.alns.build_initial_routes(self.ships)
+        self._print_routes("Initial Routes")
 
         self.routes = self.alns.optimize(self.ships, self.routes)
         self._print_routes("Optimized Routes (ALNS)")
