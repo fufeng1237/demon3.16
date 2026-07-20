@@ -1,0 +1,43 @@
+<launch>
+  <!-- Whole-river allocation uses river_map/road-network coordinates. -->
+  <arg name="tasks_path" default="$(find task_planner)/config/tasks.txt"/>
+  <arg name="river_rviz" default="true"/>
+  <!-- Keep the two coordinate systems in two deliberate RViz windows. -->
+  <arg name="local_rviz" default="true"/>
+  <include file="$(find task_planner)/launch/fleet_demo_bridge.launch">
+    <arg name="tasks_path" value="$(arg tasks_path)"/>
+  </include>
+  <!-- Original whole-river binary map.  The optional blue water Marker layer
+       is deliberately not enabled in Fleet RViz. -->
+  <node pkg="task_planner" type="whole_river_map_node.py" name="whole_river_map" output="screen">
+    <param name="image" value="/root/demon3.16/data/maps/binary_map_scaled.png"/>
+    <param name="frame_id" value="river_map"/>
+    <param name="resolution" value="2.0"/>
+  </node>
+  <node pkg="task_planner" type="fleet_motion_sim_node.py" name="fleet_motion_sim" output="screen">
+    <param name="frame_id" value="river_map"/>
+    <param name="ships" value="8"/>
+    <param name="speed" value="90.0"/>
+    <param name="portal_config" value="$(find task_planner)/config/localmap3_portals.yaml"/>
+  </node>
+
+  <!-- Visual-only offset: whole-river and localmap3 are different maps. -->
+  <node pkg="tf" type="static_transform_publisher" name="river_to_ais_visual_tf"
+        args="0 -1000 0 0 0 0 river_map map 100"/>
+
+  <!-- One shared local occupancy map; each vessel below owns an independent
+       AIS A*, CSV optimiser, DWA tracker and kinematic state. -->
+  <node pkg="map_server" type="map_server" name="localmap3_map_server" args="$(find waterway_map)/map/localmap3.yaml"/>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="0"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="1"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="2"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="3"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="4"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="5"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="6"/></include>
+  <include file="$(find task_planner)/launch/local_ship_stack.launch"><arg name="ship_id" value="7"/></include>
+  <node pkg="task_planner" type="local_path_viz_node.py" name="local_path_viz" output="screen"/>
+  <node pkg="task_planner" type="local_road_overlay_node.py" name="local_road_overlay" output="screen"/>
+  <node pkg="rviz" type="rviz" name="fleet_rviz" args="-d $(find task_planner)/config/fleet_demo.rviz" if="$(arg river_rviz)"/>
+  <node pkg="rviz" type="rviz" name="localmap3_rviz" args="-d $(find task_planner)/config/localmap3_global_demo.rviz" if="$(arg local_rviz)"/>
+</launch>

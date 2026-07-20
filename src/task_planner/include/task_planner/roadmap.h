@@ -11,6 +11,7 @@
 // 定义图的节点类型
 const std::string NODE_TYPE_NORMAL = "node";
 const std::string NODE_TYPE_PORT = "port";
+const std::string NODE_TYPE_TASK_ANCHOR = "task_anchor";
 const std::string NODE_TYPE_SHIP = "ship";
 const std::string NODE_TYPE_GAS_STATION = "gas_station";
 
@@ -20,6 +21,7 @@ struct GraphNode {
     int x;
     int y;
     std::string type; // "node", "port", "ship", "gas_station"
+    int source_id = -1;
 };
 
 // 定义图的边
@@ -34,8 +36,8 @@ public:
     std::unordered_map<int, GraphNode> nodes;
     std::unordered_map<int, std::vector<GraphEdge>> adj_list;
 
-    void addNode(int id, int x, int y, const std::string& type) {
-        nodes[id] = {id, x, y, type};
+    void addNode(int id, int x, int y, const std::string& type, int source_id = -1) {
+        nodes[id] = {id, x, y, type, source_id};
     }
 
     void addEdge(int u, int v, double weight) {

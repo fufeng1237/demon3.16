@@ -714,7 +714,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load data
-    from road_network_builder import RoadNetwork
+    from road_network import RoadNetwork
     from task_assigner import Ship, Task, TaskStatus, ShipStatus, allocate, format_allocation_result
 
     with open(args.road_network, 'r') as f:

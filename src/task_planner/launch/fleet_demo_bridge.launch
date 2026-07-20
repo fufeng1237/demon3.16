@@ -1,0 +1,16 @@
+<launch>
+  <!-- Bridge only: start one remapped ais_planner_node per ship separately. -->
+  <arg name="tasks_path" default="$(find task_planner)/config/tasks.txt"/>
+  <arg name="gnn_model" default="$(find task_planner)/output/hgt_matcher_v3.pt"/>
+  <arg name="output_dir" default="$(find task_planner)/output"/>
+  <node pkg="task_planner" type="fleet_demo_bridge_node.py" name="fleet_demo_bridge" output="screen">
+    <param name="tasks_path" value="$(arg tasks_path)"/>
+    <param name="gnn_model" value="$(arg gnn_model)"/>
+    <param name="output_dir" value="$(arg output_dir)"/>
+    <param name="max_iter" value="100"/>
+    <param name="dispatch_to_ais" value="false"/>
+    <param name="frame_id" value="river_map"/>
+    <param name="river_height" value="3252.0"/>
+    <param name="portal_config" value="$(find task_planner)/config/localmap3_portals.yaml"/>
+  </node>
+</launch>

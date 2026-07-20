@@ -1,0 +1,23 @@
+<launch>
+  <arg name="ship_id"/>
+  <arg name="lane_direction" default="1"/>
+  <arg name="ns" default="/fleet/local/ship_$(arg ship_id)"/>
+  <node pkg="ais_navigation" type="ais_planner_node" name="ais_planner_ship_$(arg ship_id)" output="screen">
+    <param name="phibar_csv_path" value="$(find ais_navigation)/map/navigation_potential_field.csv"/>
+    <param name="lane_direction" value="$(arg lane_direction)"/><param name="auto_direction" value="false"/>
+    <param name="lane_lambda" value="5.0"/><param name="lambda_qual" value="1.0"/><param name="map_resolution" value="0.5"/><param name="use_lane_guidance" value="true"/>
+    <remap from="/initialpose" to="$(arg ns)/initialpose"/><remap from="/move_base_simple/goal" to="$(arg ns)/goal"/>
+    <remap from="~ais_planned_path" to="$(arg ns)/ais_planned_path"/><remap from="~ais_traditional_path" to="$(arg ns)/ais_traditional_path"/><remap from="~grid_map" to="$(arg ns)/grid_map"/>
+  </node>
+  <node pkg="ais_navigation" type="ais_path_optimizer_node" name="ais_optimizer_ship_$(arg ship_id)" output="screen">
+    <param name="weight_data" value="0.2"/><param name="weight_smooth" value="0.5"/><param name="weight_lane" value="0.1"/><param name="lane_direction" value="$(arg lane_direction)"/><param name="tolerance" value="0.0001"/>
+    <param name="phibar_csv_path" value="$(find ais_navigation)/map/navigation_potential_field.csv"/><param name="grad_x_csv_path" value="$(find ais_navigation)/map/phibar_grad_x.csv"/><param name="grad_y_csv_path" value="$(find ais_navigation)/map/phibar_grad_y.csv"/><param name="map_resolution" value="0.5"/>
+    <remap from="~planned_path" to="$(arg ns)/ais_planned_path"/><remap from="~smoothed_path" to="$(arg ns)/ais_smoothed_path"/>
+  </node>
+  <node pkg="task_planner" type="ais_segment_adapter_node.py" name="ais_adapter_ship_$(arg ship_id)" output="screen">
+    <param name="ship_id" value="$(arg ship_id)"/><param name="local_ns" value="$(arg ns)"/><param name="portal_config" value="$(find task_planner)/config/localmap3_portals.yaml"/>
+    <param name="planner_param_ns" value="/ais_planner_ship_$(arg ship_id)"/><param name="optimizer_param_ns" value="/ais_optimizer_ship_$(arg ship_id)"/><param name="smoothed_topic" value="$(arg ns)/ais_smoothed_path"/>
+  </node>
+  <node pkg="task_planner" type="ais_dwa_tracker_node.py" name="ais_dwa_ship_$(arg ship_id)" output="screen"><param name="ship_id" value="$(arg ship_id)"/><param name="local_ns" value="$(arg ns)"/></node>
+  <node pkg="task_planner" type="dwa_kinematic_sim_node.py" name="dwa_sim_ship_$(arg ship_id)" output="screen"><param name="ship_id" value="$(arg ship_id)"/><param name="local_ns" value="$(arg ns)"/></node>
+</launch>

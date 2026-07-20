@@ -1,56 +1,97 @@
-#!/bin/bash
-# ============================================================
-# 多USV协同运输调度 — 一键启动脚本
-# 自动读取 config/usvs.txt 和 config/tasks.txt，规模自适应
-# 对比: Greedy vs Graph-ALNS (公平约束适配)
-# ============================================================
-set -e
-cd /root/demon3.16
-PY=/usr/bin/python3
-$PY -m pip install numpy matplotlib Pillow pyyaml -q 2>/dev/null
+#!/usr/bin/env bash
+# 多 USV 调度一键运行：每次均从当前地图与配置重建路网。
+set -euo pipefail
 
-# ── 读取配置规模 ──
-N_SHIPS=$(grep -c '^USV:' src/task_planner/config/usvs.txt 2>/dev/null || echo 0)
-N_TASKS=$(grep -c '^Task' src/task_planner/config/tasks.txt 2>/dev/null || echo 0)
-echo "配置: ${N_SHIPS}艘船 × ${N_TASKS}个任务"
-echo ""
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PACKAGE_DIR="$ROOT_DIR/src/task_planner"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
-# ============================================================
-#  1/3 生成路网 (C++ roadmap_generator)
-# ============================================================
-echo "============================================"
-echo "  1/3 生成路网"
-echo "============================================"
-./src/task_planner/roadmap_generator \
-    --map data/maps/binary_map_scaled.png \
-    --usvs src/task_planner/config/usvs.txt \
-    --tasks src/task_planner/config/tasks.txt \
-    --gas src/task_planner/config/gas_stations.txt \
-    --output src/task_planner/output/road_network.json
+MAP_PATH="${TASK_PLANNER_MAP:-$ROOT_DIR/data/maps/binary_map_scaled.png}"
+PORTS_PATH="${TASK_PLANNER_PORTS:-$PACKAGE_DIR/config/ports.txt}"
+USVS_PATH="${TASK_PLANNER_USVS:-$PACKAGE_DIR/config/usvs.txt}"
+GAS_PATH="${TASK_PLANNER_GAS:-$PACKAGE_DIR/config/gas_stations.txt}"
+TASKS_PATH="${TASK_PLANNER_TASKS:-$PACKAGE_DIR/config/tasks.txt}"
+OUTPUT_DIR="${TASK_PLANNER_OUTPUT:-$PACKAGE_DIR/output}"
+COMPARE_MODE="${TASK_PLANNER_COMPARE:-all}"  # all | greedy | none
+N_SEEDS="${TASK_PLANNER_SEEDS:-5}"
+CLUSTER_EPS="${TASK_PLANNER_CLUSTER_EPS:-20}"
+SAMPLE_SPACING="${TASK_PLANNER_SAMPLE_SPACING:-120}"
 
-# ============================================================
-#  2/3 路网可视化 + 分配路线图
-# ============================================================
-echo ""
-echo "============================================"
-echo "  2/3 路网图 + 分配路线图"
-echo "============================================"
-$PY src/task_planner/scripts/gen_roadmap_png.py
-$PY src/task_planner/scripts/gen_allocation_map.py
+usage() {
+  cat <<EOF
+用法: $0 [--map FILE] [--tasks FILE] [--ports FILE] [--usvs FILE] [--gas FILE]
+          [--output DIR] [--compare all|greedy|none] [--seeds N]
 
-# ============================================================
-#  3/3 Greedy vs Graph-ALNS 公平对比
-# ============================================================
-echo ""
-echo "============================================"
-echo "  3/3 Greedy vs Graph-ALNS (${N_SHIPS}船×${N_TASKS}任务)"
-echo "============================================"
-$PY src/task_planner/scripts/compare_greedy.py
+环境变量也可覆盖同名设置：TASK_PLANNER_MAP、TASK_PLANNER_TASKS、
+TASK_PLANNER_PORTS、TASK_PLANNER_USVS、TASK_PLANNER_GAS、TASK_PLANNER_OUTPUT、
+TASK_PLANNER_SEEDS。
+EOF
+}
 
-echo ""
-echo "============================================"
-echo "  完成!"
-echo "  output/road_network.json       — 路网数据"
-echo "  output/road_network_on_map.png — 路网可视化"
-echo "  output/allocation_routes.png   — 分配路线图"
-echo "============================================"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --map) MAP_PATH="$2"; shift 2 ;;
+    --tasks) TASKS_PATH="$2"; shift 2 ;;
+    --ports) PORTS_PATH="$2"; shift 2 ;;
+    --usvs) USVS_PATH="$2"; shift 2 ;;
+    --gas) GAS_PATH="$2"; shift 2 ;;
+    --output) OUTPUT_DIR="$2"; shift 2 ;;
+    --compare) COMPARE_MODE="$2"; shift 2 ;;
+    --seeds) N_SEEDS="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "未知参数: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+for path in "$MAP_PATH" "$PORTS_PATH" "$USVS_PATH" "$GAS_PATH" "$TASKS_PATH"; do
+  [[ -f "$path" ]] || { echo "缺少输入文件: $path" >&2; exit 1; }
+done
+case "$COMPARE_MODE" in all|greedy|none) ;; *) echo "--compare 必须为 all、greedy 或 none" >&2; exit 2;; esac
+[[ "$N_SEEDS" =~ ^[1-9][0-9]*$ ]] || { echo "--seeds 必须是正整数" >&2; exit 2; }
+
+mkdir -p "$OUTPUT_DIR"
+N_SHIPS=$(grep -c '^USV:' "$USVS_PATH" || true)
+N_TASKS=$(grep -c '^Task ' "$TASKS_PATH" || true)
+echo "配置: ${N_SHIPS} 艘船 × ${N_TASKS} 个任务"
+echo "地图: $MAP_PATH"
+
+# 在源码更新后自动重编译独立生成器；不依赖 catkin_make。
+GENERATOR="$PACKAGE_DIR/roadmap_generator"
+if [[ ! -x "$GENERATOR" || "$PACKAGE_DIR/src/roadmap_generator_node.cpp" -nt "$GENERATOR" || "$PACKAGE_DIR/src/common.cpp" -nt "$GENERATOR" || "$PACKAGE_DIR/include/task_planner/roadmap.h" -nt "$GENERATOR" ]]; then
+  echo "编译路网生成器..."
+  g++ -std=c++17 -O2 -I"$PACKAGE_DIR/include" \
+    "$PACKAGE_DIR/src/roadmap_generator_node.cpp" "$PACKAGE_DIR/src/common.cpp" \
+    -o "$GENERATOR" $(pkg-config --cflags --libs opencv4)
+fi
+
+echo "[1/4] 重建路网"
+"$GENERATOR" --map "$MAP_PATH" --ports "$PORTS_PATH" --usvs "$USVS_PATH" \
+  --gas "$GAS_PATH" --tasks "$TASKS_PATH" --output "$OUTPUT_DIR/road_network.json" \
+  --cluster-eps "$CLUSTER_EPS" --sample-spacing "$SAMPLE_SPACING"
+
+echo "[2/4] 输出路网图"
+TASK_PLANNER_MAP="$MAP_PATH" TASK_PLANNER_PORTS="$PORTS_PATH" TASK_PLANNER_OUTPUT="$OUTPUT_DIR" \
+  PYTHONPATH="$PACKAGE_DIR" "$PYTHON_BIN" -m scripts.visualization.gen_roadmap_png
+
+echo "[3/4] 输出任务分配图"
+TASK_PLANNER_MAP="$MAP_PATH" TASK_PLANNER_PORTS="$PORTS_PATH" TASK_PLANNER_USVS="$USVS_PATH" \
+  TASK_PLANNER_TASKS="$TASKS_PATH" TASK_PLANNER_OUTPUT="$OUTPUT_DIR" \
+  PYTHONPATH="$PACKAGE_DIR" "$PYTHON_BIN" -m scripts.visualization.gen_allocation_map
+
+case "$COMPARE_MODE" in
+  all)
+    echo "[4/4] 运行 7 算法对比"
+    TASK_PLANNER_PORTS="$PORTS_PATH" TASK_PLANNER_USVS="$USVS_PATH" TASK_PLANNER_TASKS="$TASKS_PATH" TASK_PLANNER_OUTPUT="$OUTPUT_DIR" TASK_PLANNER_SEEDS="$N_SEEDS" \
+      PYTHONPATH="$PACKAGE_DIR" "$PYTHON_BIN" -m scripts.experiments.compare_all \
+      | tee "$OUTPUT_DIR/algorithm_comparison_latest.txt"
+    ;;
+  greedy)
+    echo "[4/4] 运行 Greedy 与 Graph-ALNS 对比"
+    TASK_PLANNER_PORTS="$PORTS_PATH" TASK_PLANNER_USVS="$USVS_PATH" TASK_PLANNER_TASKS="$TASKS_PATH" TASK_PLANNER_OUTPUT="$OUTPUT_DIR" \
+      PYTHONPATH="$PACKAGE_DIR" "$PYTHON_BIN" -m scripts.experiments.compare_greedy \
+      | tee "$OUTPUT_DIR/algorithm_comparison_latest.txt"
+    ;;
+  none) echo "[4/4] 跳过对比实验" ;;
+esac
+
+echo "完成：$OUTPUT_DIR/road_network.json"

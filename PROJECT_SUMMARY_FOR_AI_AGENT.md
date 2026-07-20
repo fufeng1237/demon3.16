@@ -217,4 +217,4 @@ Time (s):        Greedy 0.0 | ALNS 56.1 | VNS 7.3 | Tabu 5.0 | GA 6.4 | GES 0.1 
 ---
 
 *文档生成日期: 2026-07-14*
-*所有算法实现位于: /root/demon3.16/src/task_planner/scripts/*
+*算法实现位于: `/root/demon3.16/src/task_planner/scripts/algorithms/`；实验入口位于 `scripts/experiments/`。*

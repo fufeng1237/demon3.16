@@ -147,6 +147,9 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   include("/root/demon3.16/build/gtest/cmake_install.cmake")
   include("/root/demon3.16/build/ais_navigation/cmake_install.cmake")
+  include("/root/demon3.16/build/task_planner/cmake_install.cmake")
+  include("/root/demon3.16/build/usv_roadmap_standalone/cmake_install.cmake")
+  include("/root/demon3.16/build/waterway_map/cmake_install.cmake")
 
 endif()
 

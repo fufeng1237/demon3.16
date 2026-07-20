@@ -40,6 +40,13 @@ static std::string g_map_file = "/root/demon3.16/data/maps/binary_map_scaled.png
 #include <algorithm>
 #include <limits>
 
+struct RoadmapParameters {
+    double cluster_epsilon = 10.0;
+    double sample_spacing = 25.0;
+    bool prune_dead_ends = false;
+    bool include_task_anchors = false;
+};
+
 // ============================================================
 // Copy of roadmap.cpp functions with configurable map path
 // ============================================================
@@ -128,7 +135,8 @@ void connectToNearestPythonStyle(Graph& G, int temp_node_id, int n_neighbors, do
 
 Graph generateRoadmapForAllocation(const std::string& map_file,
     const std::unordered_map<int, Port>& ports,
-    const std::vector<USV>& usvs, double scale_factor) {
+    const std::vector<USV>& usvs, double scale_factor,
+    const RoadmapParameters& params) {
 
     Graph graph;
     cv::Mat map_img = cv::imread(map_file, cv::IMREAD_GRAYSCALE);
@@ -161,7 +169,8 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
     }
     printf("Critical pixels: %zu\n", critical_pixels.size());
 
-    // 3. DBSCAN clustering (eps=25)
+    // 3. Cluster nearby critical pixels.  A small radius preserves nearby
+    // tributary junctions on narrow channels.
     std::vector<int> labels(critical_pixels.size(), -1);
     int cluster_id = 0;
     for (size_t i = 0; i < critical_pixels.size(); ++i) {
@@ -172,7 +181,7 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
         while (!q.empty()) {
             int curr = q.front(); q.pop();
             for (size_t j = 0; j < critical_pixels.size(); ++j) {
-                if (labels[j] == -1 && calcDistance(critical_pixels[curr], critical_pixels[j]) <= 25.0) {
+                if (labels[j] == -1 && calcDistance(critical_pixels[curr], critical_pixels[j]) <= params.cluster_epsilon) {
                     labels[j] = cluster_id;
                     q.push(j);
                 }
@@ -199,7 +208,10 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
 
     // 4. Path tracing
     std::set<std::pair<cv::Point, cv::Point>, EdgeCmp> visited_edges;
-    struct EdgeData { double weight; };
+    struct EdgeData {
+        double weight;
+        std::vector<cv::Point> path;
+    };
     std::map<std::pair<int, int>, EdgeData> final_edges;
 
     for (const auto& start_node : critical_pixels) {
@@ -210,6 +222,7 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
             visited_edges.insert(edge);
             cv::Point prev = start_node, curr = neighbor;
             double path_length = calcDistance(prev, curr);
+            std::vector<cv::Point> path{start_node, neighbor};
             while (pixel_degrees[curr] == 2) {
                 auto next_neighbors = getSkeletonNeighbors(skeleton, curr);
                 cv::Point next_node(-1, -1);
@@ -221,6 +234,7 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
                 visited_edges.insert(next_edge);
                 path_length += calcDistance(curr, next_node);
                 prev = curr; curr = next_node;
+                path.push_back(curr);
             }
             cv::Point end_node = curr;
             int c1_id = raw_to_cluster_id[start_node];
@@ -230,7 +244,7 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
                 double real_length = path_length / scale_factor;
                 if (final_edges.find(cluster_edge) == final_edges.end() ||
                     real_length < final_edges[cluster_edge].weight) {
-                    final_edges[cluster_edge] = {real_length};
+                    final_edges[cluster_edge] = {real_length, path};
                 }
             }
         }
@@ -248,14 +262,30 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
     for (const auto& kv : final_edges) {
         int u = cluster_to_graph_id[kv.first.first];
         int v = cluster_to_graph_id[kv.first.second];
-        graph.addEdge(u, v, kv.second.weight);
+        int previous = u;
+        double accumulated = 0.0;
+        const auto& path = kv.second.path;
+        for (size_t i = 1; i + 1 < path.size(); ++i) {
+            accumulated += calcDistance(path[i - 1], path[i]);
+            if (accumulated < params.sample_spacing) continue;
+            int sample_id = graph.getNextNodeId();
+            graph.addNode(sample_id, path[i].x / scale_factor,
+                          path[i].y / scale_factor, "node");
+            graph.addEdge(previous, sample_id, accumulated / scale_factor);
+            previous = sample_id;
+            accumulated = 0.0;
+        }
+        if (path.size() >= 2) {
+            accumulated += calcDistance(path[path.size() - 2], path.back());
+        }
+        graph.addEdge(previous, v, std::max(accumulated / scale_factor, 1e-6));
     }
     printf("Base graph: %zu nodes, %zu adjacency entries\n", graph.nodes.size(), graph.adj_list.size());
 
     // 6. Inject ports and ships
     for (const auto& pair : ports) {
         int port_id = graph.getNextNodeId();
-        graph.addNode(port_id, pair.second.x, pair.second.y, "port");
+        graph.addNode(port_id, pair.second.x, pair.second.y, "port", pair.first);
         connectToNearestPythonStyle(graph, port_id, 1, scale_factor);
     }
     for (const auto& usv : usvs) {
@@ -283,8 +313,9 @@ Graph generateRoadmapForAllocation(const std::string& map_file,
         }
     }
 
-    // 8. Phase 2 prune (dead-end)
-    changed = true;
+    // 8. Optional dead-end pruning.  It is disabled by default because it
+    // recursively deletes entire unanchored tributaries.
+    changed = params.prune_dead_ends;
     while (changed) {
         changed = false;
         std::vector<int> to_remove;
@@ -330,7 +361,7 @@ void connectGasStationToNearestNode(Graph& graph,
         }
         if (nearest_node != -1) {
             int sid = graph.getNextNodeId();
-            graph.addNode(sid, station.x, station.y, "gas_station");
+            graph.addNode(sid, station.x, station.y, "gas_station", station.id);
             graph.addEdge(sid, nearest_node, min_dist);
             printf("Gas station %d -> node %d (dist=%.1f)\n", station.id, sid, min_dist);
             if (n_neighbors > 1) {
@@ -367,9 +398,12 @@ void outputGraphJSON(const Graph& graph, const std::string& output_path) {
         const auto& n = pair.second;
         bool is_port = (n.type == "port");
         bool is_gas = (n.type == "gas_station");
+        bool is_task_anchor = (n.type == "task_anchor");
         out << "    {\"id\": " << n.id << ", \"x\": " << n.x << ", \"y\": " << n.y
             << ", \"is_port\": " << (is_port ? "true" : "false")
             << ", \"is_gas_station\": " << (is_gas ? "true" : "false")
+            << ", \"is_task_anchor\": " << (is_task_anchor ? "true" : "false")
+            << ", \"source_id\": " << n.source_id
             << ", \"port_name\": \"" << (is_port ? "Port_" + std::to_string(n.id) : (is_gas ? "Gas_" + std::to_string(n.id) : "")) << "\""
             << ", \"type\": \"" << n.type << "\""
             << ", \"degree\": 0}";
@@ -413,6 +447,7 @@ int main(int argc, char** argv) {
     std::string output_file = "/root/demon3.16/src/task_planner/output/road_network_cpp.json";
     std::string tasks_file = "";
     double scale_factor = 1.0;
+    RoadmapParameters params;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -423,6 +458,10 @@ int main(int argc, char** argv) {
         else if (arg == "--tasks" && i+1 < argc) tasks_file = argv[++i];
         else if (arg == "--output" && i+1 < argc) output_file = argv[++i];
         else if (arg == "--scale" && i+1 < argc) scale_factor = std::stod(argv[++i]);
+        else if (arg == "--cluster-eps" && i+1 < argc) params.cluster_epsilon = std::stod(argv[++i]);
+        else if (arg == "--sample-spacing" && i+1 < argc) params.sample_spacing = std::stod(argv[++i]);
+        else if (arg == "--prune-dead-ends") params.prune_dead_ends = true;
+        else if (arg == "--include-task-anchors") params.include_task_anchors = true;
     }
 
     printf("=== Road Network Generator (C++ standalone) ===\n");
@@ -435,17 +474,25 @@ int main(int argc, char** argv) {
     printf("Loaded: %zu ports, %zu USVs, %zu gas stations, %zu tasks\n",
            ports.size(), usvs.size(), gas_stations.size(), transport_tasks.size());
 
-    Graph graph = generateRoadmapForAllocation(map_file, ports, usvs, scale_factor);
+    printf("Parameters: cluster_eps=%.1f, sample_spacing=%.1f, prune_dead_ends=%s, include_task_anchors=%s\n",
+           params.cluster_epsilon, params.sample_spacing,
+           params.prune_dead_ends ? "true" : "false",
+           params.include_task_anchors ? "true" : "false");
+    Graph graph = generateRoadmapForAllocation(map_file, ports, usvs, scale_factor, params);
 
-    // Inject task pickup/delivery points as anchor nodes
-    for (const auto& t : transport_tasks) {
-        int pu_id = graph.getNextNodeId();
-        graph.addNode(pu_id, t.pickup_x, t.pickup_y, "port");
-        connectToNearestPythonStyle(graph, pu_id, 1, scale_factor);
-        int de_id = graph.getNextNodeId();
-        graph.addNode(de_id, t.delivery_x, t.delivery_y, "port");
-        connectToNearestPythonStyle(graph, de_id, 1, scale_factor);
-        printf("Task %d: pickup=%d delivery=%d\n", t.id, pu_id, de_id);
+    // Task locations are mapped to the nearest navigable node by the scheduler.
+    // Injecting every task as an anchor is optional because stale coordinates can
+    // create invalid straight-line links on a replacement map.
+    if (params.include_task_anchors) {
+        for (const auto& t : transport_tasks) {
+            int pu_id = graph.getNextNodeId();
+            graph.addNode(pu_id, t.pickup_x, t.pickup_y, "task_anchor", t.id);
+            connectToNearestPythonStyle(graph, pu_id, 1, scale_factor);
+            int de_id = graph.getNextNodeId();
+            graph.addNode(de_id, t.delivery_x, t.delivery_y, "task_anchor", t.id);
+            connectToNearestPythonStyle(graph, de_id, 1, scale_factor);
+            printf("Task %d: pickup=%d delivery=%d\n", t.id, pu_id, de_id);
+        }
     }
     if (!gas_stations.empty()) {
         connectGasStationToNearestNode(graph, gas_stations, 2);

@@ -6,3 +6,6 @@
 # testing this directory and lists subdirectories to be tested as well.
 subdirs("gtest")
 subdirs("ais_navigation")
+subdirs("task_planner")
+subdirs("usv_roadmap_standalone")
+subdirs("waterway_map")

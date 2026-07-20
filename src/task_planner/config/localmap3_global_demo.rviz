@@ -1,0 +1,131 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Fixed Frame: map
+    Background Color: 45; 45; 45
+    Frame Rate: 10
+  Displays:
+    - Class: rviz/Map
+      Name: localmap3
+      Enabled: true
+      Value: true
+      Topic: /map
+      Alpha: 0.9
+      Color Scheme: map
+      Draw Behind: true
+    - Class: grid_map_rviz_plugin/GridMap
+      Name: AIS CSV Navigation Potential Field
+      Enabled: true
+      Value: true
+      Topic: /fleet/local/ship_3/grid_map
+      Color Layer: phibar
+      Color Transformer: IntensityLayer
+      Height Layer: phibar
+      Height Transformer: Flat
+      Use Rainbow: true
+      Invert Rainbow: false
+      Min Intensity: -1
+      Max Intensity: 1
+      Alpha: 0.55
+      Show Grid Lines: false
+      History Length: 1
+    - Class: rviz/Path
+      Name: AIS Global Path
+      Enabled: true
+      Value: true
+      Topic: /fleet/ais_demo/global_path
+      Color: 255; 60; 60
+      Line Style: Billboards
+      Line Width: 0.65
+      Offset:
+        X: 0
+        Y: 0
+        Z: 1.0
+    - Class: rviz/Path
+      Name: AIS Lane-Guided A Star
+      Enabled: true
+      Value: true
+      Topic: /ais_planned_path
+      Color: 30; 255; 30
+      Line Style: Billboards
+      Line Width: 0.28
+      Offset:
+        X: 0
+        Y: 0
+        Z: 1.05
+    - Class: rviz/Path
+      Name: AIS CSV-Constrained Smoothed Path
+      Enabled: true
+      Value: true
+      Topic: /ais_smoothed_path
+      Color: 204; 0; 0
+      Line Style: Billboards
+      Line Width: 0.52
+      Offset:
+        X: 0
+        Y: 0
+        Z: 1.10
+    - Class: rviz/Path
+      Name: DWA Executed Trace
+      Enabled: true
+      Value: true
+      Topic: /fleet/ais_demo/dwa_local_trace
+      Color: 255; 210; 0
+      Line Style: Billboards
+      Line Width: 0.42
+      Offset:
+        X: 0
+        Y: 0
+        Z: 1.2
+    - Class: rviz/Odometry
+      Name: Simulated Vessel
+      Enabled: true
+      Value: true
+      Topic: /odom
+      Shape: Arrow
+      Color: 0; 220; 255
+      Keep: 1
+      Position Tolerance: 0
+      Angle Tolerance: 0
+      Arrow Length: 2.8
+      Arrow Radius: 0.45
+      Shaft Length: 1.8
+      Shaft Radius: 0.22
+      Head Length: 1.0
+      Head Radius: 0.45
+    - Class: rviz/MarkerArray
+      Name: USV Model and Live Wake
+      Enabled: true
+      Value: true
+      Marker Topic: /fleet/local/vessel_markers
+      Queue Size: 10
+    - Class: rviz/MarkerArray
+      Name: All Active AIS Global References
+      Enabled: true
+      Value: true
+      Marker Topic: /fleet/local/ais_reference_markers
+      Queue Size: 10
+    - Class: rviz/Marker
+      Name: Projected Task Road Subnetwork
+      Enabled: true
+      Value: true
+      Topic: /fleet/local/projected_road
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 95
+      Focal Point:
+        X: 38
+        Y: 20
+        Z: 0
+      Pitch: 1.5708
+      Yaw: 1.5708

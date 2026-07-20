@@ -1,0 +1,50 @@
+# Semantic bridge between the whole-river road graph and localmap3.
+# localmap3 geographic extent (from the QGIS export supplied by the user):
+#   lon [120.422390503, 120.618784533], lat [31.980370828, 32.083122310]
+# Its footprint is calculated from map10.png.pgw (not visually estimated):
+#   lon = 0.00016978135539449 * map10_col + 118.39877783833944
+#   lat =-0.00016978135539449 * map10_row +  32.44546107093626
+# map10 is downsampled 4x to binary_map_scaled.png and that map is published
+# at 2 m/pixel. river_* use those RViz river_map world coordinates.
+anchors:
+  - id: west_main
+    road_node: 154
+    river_xy: [6106.0, 2084.0]
+    local_xy: [14.25, 25.25]
+  - id: north_east
+    road_node: 144
+    river_xy: [6422.0, 2142.0]
+    # Recalibrated from the three-point image; this lies in the free channel,
+    # not in the narrow/occupied upper-right cells used by the old point.
+    local_xy: [57.85, 31.72]
+  - id: south_east
+    road_node: 203
+    river_xy: [6510.0, 1948.0]
+    local_xy: [67.30, 8.80]
+
+# Legacy directed portal pairs remain as fallback. Runtime selects dynamic
+# anchor-to-anchor pairs from each allocated global route.
+portals:
+  - id: localmap3_west_to_east
+    # Any allocated vessel crossing this road-network portal is eligible.
+    # Nearest connected road nodes to the local-map entry/exit coordinates.
+    river_entry_node: 154
+    river_exit_node: 193
+    river_entry_xy: [6106.0, 2084.0]
+    river_exit_xy: [6434.0, 1976.0]
+    # [west, south, east, north], calculated from the PGW affine transform.
+    river_localmap_bbox_xy: [5959.47, 1882.33, 6537.84, 2184.93]
+    local_entry: [14.25, 25.25]
+    local_exit: [62.25, 11.25]
+    trigger_radius: 120.0
+    lane_direction: 1
+  - id: localmap3_east_to_west
+    river_entry_node: 193
+    river_exit_node: 154
+    river_entry_xy: [6434.0, 1976.0]
+    river_exit_xy: [6106.0, 2084.0]
+    river_localmap_bbox_xy: [5959.47, 1882.33, 6537.84, 2184.93]
+    local_entry: [62.25, 11.25]
+    local_exit: [14.25, 25.25]
+    trigger_radius: 120.0
+    lane_direction: -1

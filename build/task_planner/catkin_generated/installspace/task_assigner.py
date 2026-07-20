@@ -672,7 +672,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load road network
-    from road_network_builder import RoadNetwork
+    from road_network import RoadNetwork
     with open(args.road_network, 'r') as f:
         rn_data = json.load(f)
     network = RoadNetwork.from_dict(rn_data)

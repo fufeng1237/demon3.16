@@ -1,0 +1,14 @@
+<launch>
+  <arg name="ship_id" default="3"/>
+  <arg name="with_map_server" default="true"/>
+  <!-- The real localmap3 occupancy grid is required by both Navfn and DWA.
+       Without this node move_base receives a goal but cannot generate cmd_vel. -->
+  <node pkg="map_server" type="map_server" name="localmap3_map_server"
+        args="$(find waterway_map)/map/localmap3.yaml" output="screen"
+        if="$(arg with_map_server)"/>
+  <rosparam command="load" file="$(find task_planner)/config/dwa_demo.yaml" ns="move_base"/>
+  <node pkg="move_base" type="move_base" name="move_base" output="screen"/>
+  <node pkg="task_planner" type="dwa_kinematic_sim_node.py" name="dwa_kinematic_sim" output="screen">
+    <param name="ship_id" value="$(arg ship_id)"/>
+  </node>
+</launch>

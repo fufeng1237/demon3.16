@@ -1220,6 +1220,71 @@ actionlib_generate_messages_nodejs/fast:
 	$(MAKE) -f ais_navigation/CMakeFiles/actionlib_generate_messages_nodejs.dir/build.make ais_navigation/CMakeFiles/actionlib_generate_messages_nodejs.dir/build
 .PHONY : actionlib_generate_messages_nodejs/fast
 
+#=============================================================================
+# Target rules for targets named roadmap_generator_node
+
+# Build rule for target.
+roadmap_generator_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 roadmap_generator_node
+.PHONY : roadmap_generator_node
+
+# fast build rule for target.
+roadmap_generator_node/fast:
+	$(MAKE) -f task_planner/CMakeFiles/roadmap_generator_node.dir/build.make task_planner/CMakeFiles/roadmap_generator_node.dir/build
+.PHONY : roadmap_generator_node/fast
+
+#=============================================================================
+# Target rules for targets named usv_roadmap
+
+# Build rule for target.
+usv_roadmap: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 usv_roadmap
+.PHONY : usv_roadmap
+
+# fast build rule for target.
+usv_roadmap/fast:
+	$(MAKE) -f usv_roadmap_standalone/CMakeFiles/usv_roadmap.dir/build.make usv_roadmap_standalone/CMakeFiles/usv_roadmap.dir/build
+.PHONY : usv_roadmap/fast
+
+#=============================================================================
+# Target rules for targets named path_optimizer_node
+
+# Build rule for target.
+path_optimizer_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 path_optimizer_node
+.PHONY : path_optimizer_node
+
+# fast build rule for target.
+path_optimizer_node/fast:
+	$(MAKE) -f waterway_map/CMakeFiles/path_optimizer_node.dir/build.make waterway_map/CMakeFiles/path_optimizer_node.dir/build
+.PHONY : path_optimizer_node/fast
+
+#=============================================================================
+# Target rules for targets named planner_node
+
+# Build rule for target.
+planner_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 planner_node
+.PHONY : planner_node
+
+# fast build rule for target.
+planner_node/fast:
+	$(MAKE) -f waterway_map/CMakeFiles/planner_node.dir/build.make waterway_map/CMakeFiles/planner_node.dir/build
+.PHONY : planner_node/fast
+
+#=============================================================================
+# Target rules for targets named map_loader_node
+
+# Build rule for target.
+map_loader_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 map_loader_node
+.PHONY : map_loader_node
+
+# fast build rule for target.
+map_loader_node/fast:
+	$(MAKE) -f waterway_map/CMakeFiles/map_loader_node.dir/build.make waterway_map/CMakeFiles/map_loader_node.dir/build
+.PHONY : map_loader_node/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -1314,6 +1379,11 @@ help:
 	@echo "... topic_tools_generate_messages_cpp"
 	@echo "... tf_generate_messages_nodejs"
 	@echo "... actionlib_generate_messages_nodejs"
+	@echo "... roadmap_generator_node"
+	@echo "... usv_roadmap"
+	@echo "... path_optimizer_node"
+	@echo "... planner_node"
+	@echo "... map_loader_node"
 .PHONY : help
 
 

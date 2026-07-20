@@ -42,12 +42,45 @@ target_link_libraries(roadmap_generator_node
 # Python scripts
 # ============================================================
 catkin_install_python(PROGRAMS
-  scripts/road_network.py
-  scripts/task_assigner.py
-  scripts/event_monitor.py
-  scripts/task_scheduler_node.py
-  scripts/visualize_road_net.py
-  scripts/run_demo.py
+  scripts/core/road_network.py
+  scripts/core/task_assigner.py
+  scripts/core/hetero_graph.py
+  scripts/core/graph_evaluator.py
+  scripts/core/state_evaluator.py
+  scripts/core/min_cost_flow.py
+  scripts/core/domain.py
+  scripts/core/route_builder.py
+  scripts/algorithms/alns_scheduler.py
+  scripts/algorithms/base_scheduler.py
+  scripts/algorithms/scheduler.py
+  scripts/algorithms/vns_scheduler.py
+  scripts/algorithms/tabu_scheduler.py
+  scripts/algorithms/ga_scheduler.py
+  scripts/algorithms/ges_scheduler.py
+  scripts/algorithms/memetic_scheduler.py
+  scripts/algorithms/planning_service.py
+  scripts/runtime/auction_realloc.py
+  scripts/runtime/event_monitor.py
+  scripts/runtime/real_time_scheduler.py
+  scripts/runtime/route_executor.py
+  scripts/runtime/execution_engine.py
+  scripts/runtime/rolling_service.py
+  scripts/runtime/task_scheduler_node.py
+  scripts/visualization/visualize_road_net.py
+  scripts/apps/run_demo.py
+  scripts/apps/run_unified_planner.py
+  scripts/apps/fleet_demo_bridge_node.py
+  scripts/apps/whole_river_map_node.py
+  scripts/apps/fleet_motion_sim_node.py
+  scripts/apps/ais_segment_adapter_node.py
+  scripts/apps/mock_local_follower_node.py
+  scripts/apps/dwa_kinematic_sim_node.py
+  scripts/apps/ais_dwa_tracker_node.py
+  scripts/apps/local_path_viz_node.py
+  scripts/apps/local_road_overlay_node.py
+  scripts/learning/dataset_builder.py
+  scripts/learning/train_matcher.py
+  scripts/tests/test_unified_pipeline.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
